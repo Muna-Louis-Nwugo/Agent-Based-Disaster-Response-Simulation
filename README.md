@@ -7,4 +7,12 @@ This project was inspired by the 9/11 attacks on New York City. I had originally
 
 ---
 
-## Overview
+## System Architecture
+
+```
+Render ←→ World ←→ Agents
+            ↓
+        World Events
+            ↓
+    World Event Handlers
+```
