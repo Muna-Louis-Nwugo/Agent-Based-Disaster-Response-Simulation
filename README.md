@@ -8,32 +8,34 @@ This project was inspired by the 9/11 attacks on New York City. I had originally
 ---
 
 ## System Architecture
-I believe that systems should always be architected as if they were going to be extended, and this project is no different. I've developed a modular system that emphasizes extensebility, especially since I plan on returning and improving my project later. 
+I believe that systems should always be architected as if they were going to be extended, and this project is no different. I've developed a modular system that emphasizes extensibility, especially since I plan on returning and improving my project later. 
 ```
               Render
               ^  |
               |  V
-   ---------- World --------> World Events
-   |           ^                  |
-   V           |                  V
-Agents---------           World Event Handlers
+      ------ World ----------
+      |                     |
+      V                     V 
+   Agents------------> World Events 
+                             |
+                             V
+                        World Handlers
 ```
 
-### Agents [The Blueprint]
-- Contains agent classes (see more under Agent Behaviours)
-- Manages Agent pathfinding
+### Agents [The Workers]
+- Contains agent classes, managing agent goals and behaviours
 - Agents are passed information about their surroundings from World Module
-- Sends information about each agent's state (e.g. civilian injured, ambulance dispactched) to World
+- Posts agent updates (e.g. injured or unfortunately deceased)
 
-### World [The Coordinator]
+### World [The Environment]
 - Contains the World class
 - Passes perception data to Agents
 - Handles tick-by-tick updates
 - Sends information about world state to render
-- Posts information about system updates (e.g. civilian injured, ambulance dispatched, catastrophe initiated) to World Events
+- Posts information about system updates (e.g. catastrophe initiated) to World Events
 
 ### World Events [The Messenger]
-- Receives system updates from World, ferries update information to the appropriate World Handlers functions
+- Receives system updates from World and Agents, ferries update information to the appropriate World Handlers functions
 
 ### World Handlers [The Executioner]
 - Updates specific parts of the system based on other system updates (e.g. Civilian injured -> check available ambulances -> dispatch ambulances)
@@ -41,5 +43,8 @@ Agents---------           World Event Handlers
 ### Render [The Display]
 - Sends World Config data from the user to world
 - Receives system state updates
+
+Note: Both **Agents** and the **World** can emit events. These are routed through the **World Events** system and processed by the **World Handlers**, which apply the appropriate changes to the simulation state.
+
 ---
 ## Agent Behaviours
