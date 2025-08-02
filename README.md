@@ -23,7 +23,7 @@ I believe that systems should always be architected as if they were going to be 
 ```
 
 ### Agents [The Workers]
-- Contains agent classes, managing agent goals and behaviours
+- Contains agent classes, managing agent goals and behaviours (see Agent Behaviours)
 - Agents are passed information about their surroundings from World Module
 - Posts agent updates (e.g. injured or unfortunately deceased)
 
@@ -38,7 +38,7 @@ I believe that systems should always be architected as if they were going to be 
 - Receives system updates from World and Agents, ferries update information to the appropriate World Handlers functions
 
 ### World Handlers [The Executioner]
-- Updates specific parts of the system based on other system updates (e.g. Civilian injured -> check available ambulances -> dispatch ambulances)
+- Updates specific parts of the system based on other system updates (e.g. Civilian injured -> check available paramedics -> dispatch paramedics)
 
 ### Render [The Display]
 - Sends World Config data from the user to world
@@ -48,3 +48,30 @@ Note: Both **Agents** and the **World** can emit events. These are routed throug
 
 ---
 ## Agent Behaviours
+Each agent has different states and decision-making patterns to realistically simulate emergency scenarios.
+
+### Civilian
+**Patterns: Wander, Flee, Safe**
+- Wander: Civilian wanders along roads from target to target on a map, taking into account how people go from one point to the next instead of aimlessly meandering
+- Flee: Civilian establishes an exit (point on the edge of the map, prefferably the closest, but not always) and flees towards that point at the maximum possible speed
+- Safe: Civilian has successfully escaped
+
+**States: Healthy, Sick, Injured, Gravely Injured, Deceased**
+- Healthy: The civilian has no injuries (90% of civilians at the start)
+- Sick: Civilian has an underlying condition (10% of civilians at the start)
+  - Makes any sustained injures more severe
+- Injured: Civilian that has been injured during catastrophe
+- Gravely Injured: Second stage of injury, civilian's condition deteriorates rapidly
+- Deceased: Civilian has died (RIP)
+
+##### Civilian states affects maximum civilian speed
+
+### Paramedic
+**Patterns: Civilian Priority, Catastrophe Priority**
+- Civilian Priority: Paramedic focuses on tending to injured civilian target before heading to catastrophe zone
+- Catastrophe Priority: Paramedic rushes to catastrophe sight, regardless of injured civilians on the way
+###### Note: I'm debating whether to have paramedics assigned to a pattern, or dynamically decide on a pattern based on the environmnent. I shall test these two strategies.
+
+**States: Standby, Dispatched**
+- Standby: Paramedic is at starting location (hospital / ambulance center)
+- Dispatched: Paramedic is responding to an injury
