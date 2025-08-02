@@ -17,9 +17,9 @@ I believe that systems should always be architected as if they were going to be 
       |                     |
       V                     V 
    Agents------------> World Events 
-                             |
-                             V
-                        World Handlers
+                            |
+                            V
+                      World Handlers
 ```
 
 ### Agents [The Workers]
@@ -29,6 +29,7 @@ I believe that systems should always be architected as if they were going to be 
 
 ### World [The Environment]
 - Contains the World class
+- Map that stores Agent objects
 - Passes perception data to Agents
 - Handles tick-by-tick updates
 - Sends information about world state to render
@@ -53,7 +54,7 @@ Each agent has different states and decision-making patterns to realistically si
 ### Civilian
 **Patterns: Wander, Flee, Safe**
 - Wander: Civilian wanders along roads from target to target on a map, taking into account how people go from one point to the next instead of aimlessly meandering
-- Flee: Civilian establishes an exit (point on the edge of the map, prefferably the closest, but not always) and flees towards that point at the maximum possible speed
+- Flee: Civilian establishes an exit (point on the edge of the map, preferably the closest, but not always) and flees towards that point at the maximum possible speed
 - Safe: Civilian has successfully escaped
 
 **States: Healthy, Sick, Injured, Gravely Injured, Deceased**
@@ -69,9 +70,36 @@ Each agent has different states and decision-making patterns to realistically si
 ### Paramedic
 **Patterns: Civilian Priority, Catastrophe Priority**
 - Civilian Priority: Paramedic focuses on tending to injured civilian target before heading to catastrophe zone
-- Catastrophe Priority: Paramedic rushes to catastrophe sight, regardless of injured civilians on the way
+- Catastrophe Priority: Paramedic rushes to catastrophe site, regardless of injured civilians on the way
 ###### Note: I'm debating whether to have paramedics assigned to a pattern, or dynamically decide on a pattern based on the environmnent. I shall test these two strategies.
 
 **States: Standby, Dispatched**
 - Standby: Paramedic is at starting location (hospital / ambulance center)
 - Dispatched: Paramedic is responding to an injury
+
+### Firefighters
+**Patterns: Engage**
+- Engage: Head directly to catastrophe site
+
+**States: Standby, Dispatched**
+- Standby: Firefighter at fire station
+- Dispatched: Firefighter en route to catastrophe site
+
+Police Agents proved to require a lot of complexity to be even remotely accurate (perimeter establishment, crowd control, etc.), so I've decided to skip them and try tackle them with the next iteration of this project.
+
+---
+## Technologies/Methods Used
+### Planned
+- Python
+- Numpy
+- Agent-Based Modeling
+- Pathfinding Algorithms
+- Multi-Agent Coordination
+- Object Oriented Programming
+- Event Driven Architecture
+- PyGame
+
+---
+## Project Status
+### In Progress
+- Preliminary agent flee behaviour
