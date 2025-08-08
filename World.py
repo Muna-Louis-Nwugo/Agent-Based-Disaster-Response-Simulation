@@ -39,21 +39,26 @@ class World():
         #Note: the grid map is to be made up of a 2d numpy array of Cell objects, to help each cell store data more effectively
     """
 
-    def __init__(self, num_civilians: int, map: np.ndarray[Cell]):
+    def __init__(self, num_civilians: int, map: np.ndarray[Cell]): # type: ignore
         self.num_civilians: int = num_civilians
         """
         #TODO: Write initialization method for and self.map_graph
         """
-        self.map: np.ndarray[Cell] = map
+        self.map: np.ndarray[Cell] = map # type: ignore
         self.map_graph: dict = self.init_map_graph()
 
-    # Return a hashmap of traversible cells
+    
+    
+    # Return a hashmap of this world's traversible cells
     def init_map_graph(self) -> dict:
+        """
+        This function produces the list of the traversible cells in this world
+        """
         # container for our graph, to be filled in
         graph: dict = {}
         
         #total possible neighbours around a cell
-        possible_neighbours: tuple[int] = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 0), (1, 1), (1, -1), (0, -1)]
+        possible_neighbours: list[tuple[int, int]] = [(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 0), (1, 1), (1, -1), (0, -1)]
 
         #looping through cells, populating graph
         for y in range(len(self.map)):
@@ -71,6 +76,8 @@ class World():
                     real_neighbours = np.array(real_neighbours) #updates variable to numpy array
 
                 graph[(y, x)] = real_neighbours
+        
+        return graph
                             
 
                     
