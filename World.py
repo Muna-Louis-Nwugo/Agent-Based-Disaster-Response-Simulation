@@ -1,5 +1,6 @@
-from Agents import Civilian
+import Agents
 import numpy as np
+import random
 
 """
 World Module - Main simulation engine for the Urban Catastrophe Simulation.
@@ -32,27 +33,36 @@ class World():
 
     Properties: 
         num_civilians -> Number of civilians on the map
+        num_paramedics -> Number of paramedics on the map
+        num_firefighters -> Number of firefighters on the map
         cell_occupants -> Which cell is occupied and by which agent
         map -> the grid map that the agents traverse along
-        map_graph -> a graphical representation of the grid map, except only including roads. Enables pathfinding around buildings
+        road_graph -> a graphical representation of the grid map, except only including roads. Enables pathfinding around buildings
 
         #Note: the grid map is to be made up of a 2d numpy array of Cell objects, to help each cell store data more effectively
     """
 
-    def __init__(self, num_civilians: int, map: np.ndarray[Cell]): # type: ignore
+    def __init__(self, num_civilians: int, num_paramedics: int, num_firefighters: int, map: np.ndarray[Cell]): # type: ignore
         self.num_civilians: int = num_civilians
+        self.num_paramedics: int = num_paramedics
+        self.num_firefighters: int = num_firefighters
         """
-        #TODO: Write initialization method for and self.map_graph
+        #TODO: Write initialization method for and self.road_graph
         """
         self.map: np.ndarray[Cell] = map # type: ignore
-        self.map_graph: dict = self.init_map_graph()
+        self.road_graph: dict = self.init_road_graph()
+
+        self.agent_spawn(self.num_civilians, Agents.Civilian)
+        """ self.agent_spawn(self.num_paramedics, Agents.Paramedic)
+        self.agent_spawn(self.num_firefighters, Agents.Firefighter) """
 
     
     
     # Return a hashmap of this world's traversible cells
-    def init_map_graph(self) -> dict:
+    def init_road_graph(self) -> dict:
         """
-        This function produces the list of the traversible cells in this world
+        This function produces the list of the traversible cells (roads) in this world. It does so by visiting each cell in this world, and then iterating through a list of possible neighbours,
+        adding all valid neighbours to a list. This list is then assigned to the original cell's key.
         """
         # container for our graph, to be filled in
         graph: dict = {}
@@ -64,21 +74,36 @@ class World():
         for y in range(len(self.map)):
             for x in range(len(self.map[y])):
                 if self.map[y][x].is_road:
-                    real_neighbours = []
+                    #All valid
+                    valid_neighbours = []
 
                     for dy, dx in possible_neighbours:
                         ny, nx = dy + y, dx + x
 
                         if ny < self.map.shape[0] and nx < self.map.shape[1] and ny >= 0 and nx >= 0:
                             if self.map[ny][nx].is_road:
-                                real_neighbours.append((ny, nx))
+                                valid_neighbours.append((ny, nx))
                     
-                    real_neighbours = np.array(real_neighbours) #updates variable to numpy array
 
-                graph[(y, x)] = real_neighbours
+                graph[(y, x)] = valid_neighbours
         
         return graph
-                            
 
-                    
+    
+    # EFFECT: Spawns agents in the grid
+    def agent_spawn(self, num_agents: int, agent_type: type) -> None:
+        """
+        This function spawns random agents onto the grid by generating random indeces and placing agents in them until the desired number of agents have been placed
+        """
 
+        road_list: list[tuple] = list(self.road_graph.keys())
+
+        while num_agents > 0:
+            rand_num = random.randrange(0, len(road_list))
+            desired_cell = road_list[rand_num]
+
+            if self.map[desired_cell[0], desired_cell[1]].occupant is not None: # type: ignore #checks if a cell is already occupied
+                continue
+            else:
+                self.map[desired_cell[0], desired_cell[1]].occupant = agent_type(desired_cell, None) # type: ignore #TODO: build method to pass through agent perception
+                num_agents -= 1
