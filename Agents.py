@@ -1,5 +1,7 @@
 import numpy as np
 from enum import Enum
+from abc import ABC, abstractmethod
+import random
 
 """
 Agents Module - Autonomous entities for the Urban Catastrophe Simulation.
@@ -16,7 +18,19 @@ Agent types include Civilians, Paramedics, and Firefighters, each with distinct
 behaviors and priorities during emergency scenarios.
 """
 
-class Civilian():
+class Agent(ABC):
+    def __init__(self, location: tuple, movement_choices: list):
+        self.location: tuple = location
+        self.perception: np.ndarray = None # type: ignore
+        self.movement_choices: list = movement_choices
+
+    @abstractmethod
+    def update(self):
+        pass
+    
+
+
+class Civilian(Agent):
     """
     The Civilian class represents individual citizens navigating the urban environment.
 
@@ -53,9 +67,13 @@ class Civilian():
         GRAVELY_INJURED = 4
         DECEASED = 5
 
-    def __init__(self, location: tuple, perception: np.ndarray):
-        self.location: tuple = location
-        self.perception: np.ndarray = perception
+    def __init__(self, location: tuple, movement_choices: list):
+        super().__init__(location, movement_choices)
         self.pattern: Civilian.Pattern = self.Pattern.WANDER
         self.health_state: Civilian.HealthState = self.HealthState.HEALTHY
-        self.max_speed: float = None  # TODO: come up with maximum speed equation. 
+        self.max_speed: float = 0  # TODO: come up with maximum speed equation. 
+
+    def update(self):
+        rand_number = random.randrange(0, len(self.movement_choices))
+
+        self.location = self.movement_choices[rand_number]
