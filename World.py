@@ -76,6 +76,8 @@ class World():
         Example:
             {(0, 1): [(0, 2), (1, 1), (1, 2)],
             (0, 2): [(0, 1), (0, 3), (1, 2)], ...}
+
+        TODO: Remove graph connections for roads that require an intersection in between
         """
         # container for our graph, to be filled in
         graph: dict = {}
@@ -256,4 +258,4 @@ if __name__ == "__main__":
     for i in range(10):
         world.update()
         world.draw()
-        time.sleep(1)
+        time.sleep(1) 

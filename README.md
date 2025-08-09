@@ -13,13 +13,11 @@ I believe that systems should always be architected as if they were going to be 
               Render
               ^  |
               |  V
-      ------ World ----------
-      |                     |
-      V                     V 
-   Agents------------> World Events 
-                            |
-                            V
-                      World Handlers
+      ------ World <--- World Handlers
+      |                     ^
+      V                     | 
+   Agents -----------> World Events 
+                      
 ```
 
 ### Agents [The Workers]
@@ -101,5 +99,19 @@ Police Agents proved to require a lot of complexity to be even remotely accurate
 
 ---
 ## Project Status
+### Completed
+- Cevilian scaffolding
+- General Agent spawn
+- General Agent awareness
+- Basic agent movement
+
+
 ### In Progress
-- Preliminary agent flee behaviour
+- Preliminary Civilian flee behaviour (Pathfinding)
+- Collision Detection
+
+### Planned
+- Advanced agent pathfinding and reactions to surroudings(Repath Penalty)
+- Paramedic scaffolding
+- Firefighter scaffolding
+
