@@ -109,6 +109,7 @@ Police Agents proved to require a lot of complexity to be even remotely accurate
 ### In Progress
 - Preliminary Civilian flee behaviour (Pathfinding)
 - Collision Detection
+- Proper Agent movement at intersection
 
 ### Planned
 - Advanced agent pathfinding and reactions to surroudings(Repath Penalty)

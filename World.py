@@ -77,7 +77,7 @@ class World():
             {(0, 1): [(0, 2), (1, 1), (1, 2)],
             (0, 2): [(0, 1), (0, 3), (1, 2)], ...}
 
-        TODO: Remove graph connections for roads that require an intersection in between
+        FIXME: Remove graph connections for roads that require an intersection in between
         """
         # container for our graph, to be filled in
         graph: dict = {}
@@ -133,7 +133,7 @@ class World():
             if self.map[desired_cell[0], desired_cell[1]].occupant is not None: # type: ignore #checks if a cell is already occupied
                 continue
             else:
-                new_agent = agent_type(desired_cell, self.road_graph[desired_cell])
+                new_agent = agent_type(desired_cell, self.road_graph)
                 self.set_perception(new_agent)
                 self.map[desired_cell[0], desired_cell[1]].occupant = new_agent # type: ignore
                 self.agents.append(new_agent)
@@ -174,9 +174,10 @@ class World():
         Side Effects:
             - Updates all agent positions
             - Updates cell occupancy in self.map
-            - Refreshes agent perceptions and movement choices
+            - Refreshes agent perceptions
         
         TODO: Manage collision detection
+        (Actually, it might be better to manage Collision Detection within the agent itself)
         """
 
         for agent in self.agents:
@@ -188,7 +189,6 @@ class World():
             self.map[new_loc[0], new_loc[1]].occupant = agent # type: ignore
 
             self.set_perception(agent)
-            agent.movement_choices = self.road_graph[new_loc]
 
 
     # Draws map
