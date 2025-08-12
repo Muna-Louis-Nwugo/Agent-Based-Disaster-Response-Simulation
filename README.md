@@ -13,10 +13,10 @@ I believe that systems should always be architected as if they were going to be 
               Render
               ^  |
               |  V
-      ------ World <--- World Handlers
-      |                     ^
-      V                     | 
-   Agents -----------> World Events 
+    ---------- World <--- World Handlers
+    |            |             ^
+    V            V             |
+  Agents -> World Events -------
                       
 ```
 
