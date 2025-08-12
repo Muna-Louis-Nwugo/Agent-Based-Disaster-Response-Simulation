@@ -103,7 +103,6 @@ Police Agents proved to require a lot of complexity to be even remotely accurate
 - Cevilian scaffolding
 - General Agent spawn
 - General Agent awareness
-- Basic agent movement
 - Agent Pathfinding
 
 
