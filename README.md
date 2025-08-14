@@ -104,11 +104,11 @@ Police Agents proved to require a lot of complexity to be even remotely accurate
 - General Agent spawn
 - General Agent awareness
 - Agent Pathfinding
+- Agent pathfollowing and local avoidance
 
 
 ### In Progress
 - Agent destination decisions
-- Collision Detection
 - Proper Agent movement at intersection
 
 ### Planned
