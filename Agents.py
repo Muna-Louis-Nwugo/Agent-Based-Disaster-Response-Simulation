@@ -3,7 +3,6 @@ from enum import Enum
 from abc import ABC, abstractmethod
 import math
 import heapq
-from World import Cell
 
 
 """
@@ -22,7 +21,7 @@ behaviors and priorities during emergency scenarios.
 """
 
 class Agent(ABC):
-    def __init__(self, location: tuple, target: tuple, road_graph: dict):
+    def __init__(self, location: tuple, road_graph: dict, target: tuple):
         self.location: tuple = location
         self.perception: np.ndarray = None # type: ignore
         self.road_graph: dict = road_graph
@@ -111,7 +110,7 @@ class Agent(ABC):
         else:
             return completed_path[::-1]
         
-    #TODO: Figure out how agents will figure out their targets
+    
     @abstractmethod
     def find_target(self) -> tuple:
         pass
@@ -136,6 +135,11 @@ class Agent(ABC):
         """
         if len(self.path) <= 0:
             return self.location
+        
+        # Check if perception is valid
+        # HACK: just nullifying the method for agents who don't have a perception or whose perception isn't exactly 7x7. adjust neighbor indices based on actual perception size
+        if self.perception is None or self.perception.shape != (7, 7):
+            return self.location  # Can't navigate without full perception
 
         # next step in the path
         desired_loc = self.path.pop(0)
@@ -166,7 +170,7 @@ class Agent(ABC):
             heuristic: float = max(abs(perceived_desired_loc[0] - cell[0]), abs(perceived_desired_loc[1] - cell[1]))
 
             if heuristic < best_score:
-                if self.perception[cell[0]][cell[1]].occupant is None: # type: ignore
+                if self.perception[cell[0]][cell[1]].occupant is None and self.perception[cell[0]][cell[1]].is_road: # type: ignore
                     best_loc = cell
                     best_score = heuristic
         
@@ -211,14 +215,30 @@ class Civilian(Agent):
         DECEASED = 5
 
     def __init__(self, location: tuple, road_graph: dict):
-        super().__init__(location, self.find_target(), road_graph)
         self.pattern: Civilian.Pattern = self.Pattern.WANDER
         self.health_state: Civilian.HealthState = self.HealthState.HEALTHY
         self.max_speed: float = 0  # TODO: come up with maximum speed equation. 
+        self.road_graph = road_graph
+        super().__init__(location, road_graph, self.find_target())
 
+    #updates this civilians position
     def update(self):
-        #rand_number = random.randrange(0, len(self.movement_choices))
+        if self.path:
+            self.location = self.follow_path()
+        else:
+            # Reached destination, find new target
+            self.target = self.find_target()
+            self.path = self.find_path(self.target)
 
-        #self.location = #TODO: write method that path follows to allow agents to move while avoiding obstacles
-        pass
+    def find_target(self) -> tuple: # type: ignore
+        if self.pattern == self.Pattern.WANDER:
+            import random
+            road_cells = list(self.road_graph.keys())
+            return road_cells[random.randrange(len(road_cells))]
+        elif self.pattern == self.Pattern.FLEE:
+            # Find nearest edge (implement later)
+            pass
+        elif self.pattern == self.Pattern.SAFE:
+            # Already safe, stay put
+            return self.location
         

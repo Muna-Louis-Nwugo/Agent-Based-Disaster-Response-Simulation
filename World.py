@@ -141,7 +141,8 @@ class World():
     
     
     # EFFECT: initializes agent perception
-    def set_perception(self, agent: Agents.Agent) -> None:
+    # FIXME: add a little bit of padding to perception (or agent spawn) to handle cases better handle cases at the edge of the map
+    def set_perception(self, agent) -> None:
         """
         Updates an agent's perception array with their surrounding environment.
         
@@ -172,15 +173,18 @@ class World():
         handle collision detection in current implementation.
         
         Side Effects:
+            - Refreshes agent perceptions
             - Updates all agent positions
             - Updates cell occupancy in self.map
-            - Refreshes agent perceptions
         
-        TODO: Manage collision detection
-        (Actually, it might be better to manage Collision Detection within the agent itself)
+        INTERESTING TEST:
+            Traffic tends to cluster near the upper left corner of the map, does shuffling the order of agent operations on each tick change that?
+            Answer, yes. processing order was biased towards the left, after I implemented the change, traffic starte concentrating towards the upper center of the map.
         """
 
         for agent in self.agents:
+            self.set_perception(agent)
+
             old_loc = agent.location
             agent.update()
             new_loc = agent.location
@@ -188,7 +192,7 @@ class World():
             self.map[old_loc[0], old_loc[1]].occupant = None # type: ignore
             self.map[new_loc[0], new_loc[1]].occupant = agent # type: ignore
 
-            self.set_perception(agent)
+            random.shuffle(self.agents)
 
 
     # Draws map
@@ -232,30 +236,46 @@ class World():
             print()
 
 if __name__ == "__main__": 
-    # True = road, False = building
-    test_grid = [
-        [False, True,  True,  False, False, False, True,  True,  True,  False],
-        [False, True,  True,  False, False, False, True,  False, True,  False],
-        [False, True,  True,  True,  True,  True,  True,  False, True,  False],
-        [False, False, False, False, False, False, False, False, True,  False],
-        [True,  True,  True,  True,  True,  True,  True,  True,  True,  False],
-        [True,  False, False, False, False, False, False, False, True,  False],
-        [True,  True,  True,  True,  False, False, True,  True,  True,  False],
-        [False, False, False, True,  False, False, True,  False, False, False],
-        [True,  True,  True,  True,  False, False, True,  True,  True,  True],
-        [False, False, False, False, False, False, False, False, False, False]
-    ]
+    # Generate a 70x70 city grid with multi-lane roads
+    size = 70
+    test_grid = [[False for _ in range(size)] for _ in range(size)]
+    
+    # Create main avenues (3 lanes wide) every 10 blocks
+    for i in range(0, size, 10):
+        for j in range(size):
+            # Vertical avenues
+            if i < size - 2:
+                test_grid[j][i] = True
+                test_grid[j][i+1] = True
+                test_grid[j][i+2] = True
+            # Horizontal avenues
+            if j < size - 2:
+                test_grid[i][j] = True
+                test_grid[i+1][j] = True
+                test_grid[i+2][j] = True
+    
+    # Add smaller streets (2 lanes wide) between avenues
+    for i in range(5, size, 10):
+        for j in range(size):
+            # Vertical streets
+            if i < size - 1:
+                test_grid[j][i] = True
+                test_grid[j][i+1] = True
+            # Horizontal streets
+            if j < size - 1:
+                test_grid[i][j] = True
+                test_grid[i+1][j] = True
 
     # Convert to numpy array of Cell objects
-    map_array = np.empty((10, 10), dtype=object)
-    for y in range(10):
-        for x in range(10):
+    map_array = np.empty((size, size), dtype=object)
+    for y in range(size):
+        for x in range(size):
             map_array[y, x] = Cell(test_grid[y][x])
 
     # Create world
-    world = World(num_civilians=5, num_paramedics=0, num_firefighters=0, map=map_array) #type: ignore
+    world = World(num_civilians=1000, num_paramedics=0, num_firefighters=0, map=map_array) #type: ignore
 
-    for i in range(10):
+    for i in range(1000):
         world.update()
         world.draw()
-        time.sleep(1) 
+        #time.sleep(0.005)
