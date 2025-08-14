@@ -157,7 +157,7 @@ class World():
         """
         y, x = agent.location
 
-        perception: np.ndarray = self.map[y-3:y+4, x-3:x+4]
+        perception: np.ndarray = self.map[y-3:y+4, x-3:x+4] 
 
         agent.perception = perception
     

@@ -1,9 +1,10 @@
 import numpy as np
 from enum import Enum
 from abc import ABC, abstractmethod
-import random
-import heapq
 import math
+import heapq
+from World import Cell
+
 
 """
 Agents Module - Autonomous entities for the Urban Catastrophe Simulation.
@@ -32,7 +33,7 @@ class Agent(ABC):
     def update(self):
         pass
 
-    # calculates this civilian's path to a target
+    # calculates this agent's path to a target
     def find_path(self, target: tuple) -> list[tuple]:
 
         """
@@ -73,7 +74,7 @@ class Agent(ABC):
             current_f, current = heapq.heappop(to_be_visited)  # current_f not needed after pop
             
             if current == target:
-                return self.finish_path([], target, came_from)  # CALLS YOUR METHOD
+                return self.finish_path([], target, came_from)
             
             for neighbor in self.road_graph[current]:
                 heuristic = max(abs(neighbor[0] - target[0]), abs(neighbor[1] - target[1]))
@@ -84,14 +85,6 @@ class Agent(ABC):
                     f = tentative_g + heuristic
                     heapq.heappush(to_be_visited, (f, neighbor))
                     came_from[neighbor] = current
-        
-        return []  # No path found
-    
-
-    #TODO: Figure out how agents will figure out their targets
-    @abstractmethod
-    def find_target(self) -> tuple:
-        pass
 
     
     #Find path helper
@@ -116,9 +109,68 @@ class Agent(ABC):
         if val in came_from:
             return self.finish_path(completed_path, came_from[val], came_from)
         else:
-            completed_path.append(self.location)
             return completed_path[::-1]
-    
+        
+    #TODO: Figure out how agents will figure out their targets
+    @abstractmethod
+    def find_target(self) -> tuple:
+        pass
+
+    # Follows the predefined path, avoiding local obstacles
+    def follow_path(self) -> tuple:
+        """
+        Navigates along the pre-calculated path while avoiding dynamic obstacles using local avoidance.
+        
+        Attempts to follow the A* path by evaluating neighbours and selecting the neighbour that is the closest to the agent's desired destination.
+        
+        Returns:
+            tuple: World coordinates (y, x) of the agent's next position. Returns current position if no valid moves are available.
+                
+        Implementation:
+            - Pops next waypoint from path and converts to perception coordinates
+            - Checks if waypoint is within perception range (3 cells in any direction)
+            - If too far off course, triggers full path recalculation
+            - Evaluates all 8 adjacent cells for the best alternative move
+            - Uses Chebyshev heuristic to stay as close to planned path as possible
+            - Defaults to staying in place if completely surrounded
+        """
+        if len(self.path) <= 0:
+            return self.location
+
+        # next step in the path
+        desired_loc = self.path.pop(0)
+        # translation difference
+        translation_difference: tuple = (self.location[0] - 3, self.location[1] - 3) #this agent is at the center of its perception (3,3)
+        # find desired cell within perception
+        perceived_desired_loc: tuple[int, int] = (desired_loc[0] - translation_difference[0], desired_loc[1] - translation_difference[1])
+        distance_to_loc: tuple[int, int] = (perceived_desired_loc[0] - 3, perceived_desired_loc[1] - 3)
+
+        # recalculates path if the agent strays too far from path
+        if abs(distance_to_loc[0]) >= 3 or abs(distance_to_loc[1]) >= 3:
+            self.path = self.find_path(self.target)
+            # next step in the path
+            desired_loc = self.path.pop(0)
+            # translates the difference from the world grid to the agent's perception grid
+            translation_difference: tuple = (self.location[0] - 3, self.location[1] - 3) #this agent is at the center of its perception (3,3)
+            # find desired cell within perception
+            perceived_desired_loc: tuple[int, int] = (desired_loc[0] - translation_difference[0], desired_loc[1] - translation_difference[1])
+            distance_to_loc: tuple[int, int] = (perceived_desired_loc[0] - 3, perceived_desired_loc[1] - 3)
+
+        # list of all neighbours (around center of perception)
+        neighbours: list[tuple] = [(2, 2), (2, 3), (2, 4), (3, 2), (4, 2), (3, 4), (4, 4), (4, 3)] 
+        best_loc: tuple = (3, 3)  #default (stay in place if there are no new moves)
+        best_score: float = math.inf
+
+        # finds best empty cell using Chebyshev's heuristic
+        for cell in neighbours:
+            heuristic: float = max(abs(perceived_desired_loc[0] - cell[0]), abs(perceived_desired_loc[1] - cell[1]))
+
+            if heuristic < best_score:
+                if self.perception[cell[0]][cell[1]].occupant is None: # type: ignore
+                    best_loc = cell
+                    best_score = heuristic
+        
+        return (best_loc[0] + translation_difference[0], best_loc[1] + translation_difference[1])
 
 
 class Civilian(Agent):
