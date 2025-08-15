@@ -40,6 +40,7 @@ class World():
         map -> the grid map that the agents traverse along
         road_graph -> a graphical representation of the grid map, except only including roads. Enables pathfinding around buildings
         agents -> list of all agents
+        wall -> a cell object that represents out-of-grid cells. Cached for self.set_perception
 
         #Note: the grid map is to be made up of a 2d numpy array of Cell objects, to help each cell store data more effectively
     """
@@ -51,6 +52,7 @@ class World():
         self.map: np.ndarray[Cell] = map # type: ignore
         self.road_graph: dict = self.init_road_graph()
         self.agents: list[Agents.Agent] = []
+        self.wall = Cell(False)
 
         self.agent_spawn(self.num_civilians, Agents.Civilian)
         """ self.agent_spawn(self.num_paramedics, Agents.Paramedic)
@@ -157,10 +159,36 @@ class World():
             - Updates agent.perception with current surrounding grid
         """
         y, x = agent.location
+        
+        # Track the actual slice boundaries
+        y_start:int = max(0, y - 3)
+        y_end: int = min(self.map.shape[0], y + 4)
+        x_start: int = max(0, x - 3)
+        x_end: int = min(self.map.shape[1], x + 4)
+        
+        perception = self.map[y_start:y_end, x_start:x_end]
 
-        perception: np.ndarray = self.map[y-3:y+4, x-3:x+4] 
+        y_start_pad: int = 0
+        y_end_pad: int = 0
+        x_start_pad: int = 0
+        x_end_pad: int = 0
 
-        agent.perception = perception
+        if y_start == 0:
+            y_start_pad = -(y-3)
+        if x_start == 0:
+            x_start_pad = -(x-3)
+        if y_end == self.map.shape[0]:
+            y_end_pad = (y+4) - self.map.shape[0]
+        if x_end == self.map.shape[1]:
+            x_end_pad = (x+4) - self.map.shape[1]
+
+        padded_perception = np.pad(perception, ((y_start_pad, y_end_pad), (x_start_pad, x_end_pad)), mode="constant", constant_values= self.wall) # type: ignore
+        
+        """ # Now you know where agent is in perception:
+        agent_y_in_perception = y - y_start
+        agent_x_in_perception = x - x_start """
+        
+        agent.perception = padded_perception
     
     #EFFECT: updates every agent on the grid
     def update(self):
@@ -182,6 +210,8 @@ class World():
             Answer, yes. processing order was biased towards the left, after I implemented the change, traffic starte concentrating towards the upper center of the map.
         """
 
+        random.shuffle(self.agents)
+
         for agent in self.agents:
             self.set_perception(agent)
 
@@ -191,9 +221,6 @@ class World():
 
             self.map[old_loc[0], old_loc[1]].occupant = None # type: ignore
             self.map[new_loc[0], new_loc[1]].occupant = agent # type: ignore
-
-            random.shuffle(self.agents)
-
 
     # Draws map
     def draw(self) -> None:
@@ -273,9 +300,14 @@ if __name__ == "__main__":
             map_array[y, x] = Cell(test_grid[y][x])
 
     # Create world
-    world = World(num_civilians=1000, num_paramedics=0, num_firefighters=0, map=map_array) #type: ignore
+    world = World(num_civilians=600, num_paramedics=0, num_firefighters=0, map=map_array) #type: ignore
 
-    for i in range(1000):
+    """ for i in range(10000):
         world.update()
         world.draw()
-        #time.sleep(0.005)
+        #time.sleep(0.005)  """
+    
+    import time
+    start = time.time()
+    world.update()
+    print(f"Update took: {time.time() - start:.3f} seconds")

@@ -135,11 +135,6 @@ class Agent(ABC):
         """
         if len(self.path) <= 0:
             return self.location
-        
-        # Check if perception is valid
-        # HACK: just nullifying the method for agents who don't have a perception or whose perception isn't exactly 7x7. adjust neighbor indices based on actual perception size
-        if self.perception is None or self.perception.shape != (7, 7):
-            return self.location  # Can't navigate without full perception
 
         # next step in the path
         desired_loc = self.path.pop(0)
