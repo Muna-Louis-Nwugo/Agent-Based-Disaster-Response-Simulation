@@ -319,24 +319,26 @@ if __name__ == "__main__":
             map_array[y, x] = Cell(test_grid[y][x])
 
     # Create world
-    world = World(num_civilians=550, num_paramedics=0, num_firefighters=0, map=map_array) #type: ignore
+    world = World(num_civilians=500, num_paramedics=0, num_firefighters=0, map=map_array) #type: ignore
 
-    for i in range(100):
+    for i in range(300):
         start = time.time()
         world.update()
         print(f"Update took: {time.time() - start:.3f} seconds")
         world.draw()
+        time.sleep(0.05)
     
     world.set_disaster_loc((29, 24))
+    print("CATASTROPHE COMMENCED")
     
-    for i in range(100):
+    for i in range(300):
         start = time.time()
         world.update()
         print(" ")
         print(f"Update took: {time.time() - start:.3f} seconds")
         world.draw()
 
-        #time.sleep(1) 
+        time.sleep(0.05) 
 
     
     """ import time

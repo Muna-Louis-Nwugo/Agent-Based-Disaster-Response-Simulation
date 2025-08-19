@@ -207,7 +207,7 @@ class Civilian(Agent):
 
     # list of all safe cells on the map (cells at the edge of the map)
     # populated by the first agent that needs it, then simply referenced by all the other ones
-    safe_cells: np.ndarray = np.array([])
+    safe_cells: list = []
 
     #Choices of Civilian Pattern
     class Pattern(Enum):
@@ -239,9 +239,9 @@ class Civilian(Agent):
         
         # Check if at edge (for fleeing agents)
         if self.pattern == self.Pattern.FLEE:
-            if any(np.array_equal(self.location, edge) for edge in self.safe_cells):
+            if any(self.location[0] == edge[0] and self.location[1] == edge[1] for edge in self.safe_cells):
                 self.pattern = self.Pattern.SAFE
-                print("Agent safe")
+                #print("Agent safe")
                 return  # Don't move anymore
         
         if self.path:
@@ -252,7 +252,6 @@ class Civilian(Agent):
                 self.path = self.find_path(self.target)
             # If fleeing and no path, try to find new flee target
             elif self.pattern == self.Pattern.FLEE:
-                self.target = self.find_target()
                 self.path = self.find_path(self.target)
 
     def find_target(self) -> tuple: # type: ignore
@@ -293,22 +292,20 @@ class Civilian(Agent):
                 #populates slf.safe_cells with the list of valid edge cells
                 # valid edge cells are used by iterating up until y_size and x_size (which are the map edges) and checking if they exist in
                 # road_cells
-                safe_cell_list: list = []
 
                 for i in range(y_size + 1):
                     if (i, x_size) in road_cells:
-                        safe_cell_list.append((i, x_size))
+                        self.safe_cells.append((i, x_size))
                     if (i, 0) in road_cells:
-                        safe_cell_list.append((i, 0))
+                        self.safe_cells.append((i, 0))
                 
                 for j in range(x_size + 1):
                     if (y_size, j) in road_cells:
-                        safe_cell_list.append((y_size, j))
+                        self.safe_cells.append((y_size, j))
 
                     if (0, j) in road_cells:
-                        safe_cell_list.append((0, j))
+                        self.safe_cells.append((0, j))
                 
-                self.safe_cells: np.ndarray = np.array(safe_cell_list)
             
             """
             The following piece of code finds the safe_cell that is the closest to the civilian that doesn't require moving towards the catastrophe
@@ -335,13 +332,14 @@ class Civilian(Agent):
                 relative_location_x = operator.le
             
             # filters the indices that are safe to travel towards
-            valid_indices = np.where((relative_location_y(self.safe_cells[:, 0], self.location[0])) & (relative_location_x(self.safe_cells[:, 1], self.location[1])))
+            valid_indices = [edge for edge in self.safe_cells if relative_location_y(edge[0], self.location[0]) and relative_location_x(edge[1], self.location[1])]
+            
 
             # uses chebyshev distance to find the closest one
             closest_safe_cell: tuple = self.location
             min_distance: float = math.inf
             for i in valid_indices[0]:
-                heuristic: float = max(abs(self.safe_cells[i, 0] - self.location[0]), abs(self.safe_cells[i, 1] - self.location[1]))
+                heuristic: float = max(abs(self.safe_cells[i][0] - self.location[0]), abs(self.safe_cells[i][1] - self.location[1]))
                 if  heuristic < min_distance:
                     closest_safe_cell = self.safe_cells[i] #type: ignore
                     min_distance = heuristic
@@ -374,7 +372,7 @@ class Civilian(Agent):
                 if cell.occupant.pattern == Civilian.Pattern.FLEE:
                     num_fleeing_agents += 1
 
-            if cell.disaster or num_fleeing_agents > 3:
+            if cell.disaster or num_fleeing_agents > 5:
                 self.pattern = self.Pattern.FLEE
                 self.target = self.find_target()
                 self.path = self.find_path(self.target)
