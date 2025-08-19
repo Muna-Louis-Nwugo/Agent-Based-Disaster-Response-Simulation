@@ -21,10 +21,11 @@ and orchestrating all agent behaviors during catastrophic events.
 class Cell():
     """
     The Cell class represents each cell in the 100x100 grid. It stores information about what type of cell it is
-    (road or building) and whhich agent is currently occupying the cell.
+    (road or building), whether the cell is a disaster site, and which agent is currently occupying the cell.
     """
-    def __init__(self, is_road: bool):
+    def __init__(self, is_road: bool, disaster: bool = False):
         self.is_road: bool = is_road
+        self.disaster: bool = disaster
         self.occupant: Agents.Agent = None  # type: ignore
 
 class World():
@@ -39,18 +40,20 @@ class World():
         cell_occupants -> Which cell is occupied and by which agent
         map -> the grid map that the agents traverse along
         road_graph -> a graphical representation of the grid map, except only including roads. Enables pathfinding around buildings
+        disaster_loc -> the grid-coordinate location of the catastrophe
         agents -> list of all agents
         wall -> a cell object that represents out-of-grid cells. Cached for self.set_perception
 
         #Note: the grid map is to be made up of a 2d numpy array of Cell objects, to help each cell store data more effectively
     """
 
-    def __init__(self, num_civilians: int, num_paramedics: int, num_firefighters: int, map: np.ndarray[Cell]): # type: ignore
+    def __init__(self, num_civilians: int, num_paramedics: int, num_firefighters: int, map: np.ndarray[Cell], disaster_loc: tuple = None): # type: ignore
         self.num_civilians: int = num_civilians
         self.num_paramedics: int = num_paramedics
         self.num_firefighters: int = num_firefighters
         self.map: np.ndarray[Cell] = map # type: ignore
         self.road_graph: dict = self.init_road_graph()
+        self.disaster_loc: tuple = disaster_loc
         self.agents: list[Agents.Agent] = []
         self.wall = Cell(False)
 
@@ -78,8 +81,6 @@ class World():
         Example:
             {(0, 1): [(0, 2), (1, 1), (1, 2)],
             (0, 2): [(0, 1), (0, 3), (1, 2)], ...}
-
-        FIXME: Remove graph connections for roads that require an intersection in between
         """
         # container for our graph, to be filled in
         graph: dict = {}
@@ -143,7 +144,6 @@ class World():
     
     
     # EFFECT: initializes agent perception
-    # FIXME: add a little bit of padding to perception (or agent spawn) to handle cases better handle cases at the edge of the map
     def set_perception(self, agent) -> None:
         """
         Updates an agent's perception array with their surrounding environment.
@@ -189,6 +189,12 @@ class World():
         agent_x_in_perception = x - x_start """
         
         agent.perception = padded_perception
+
+    #sets the location of a disaster
+    def set_disaster_loc(self, loc: tuple):
+        self.disaster_loc = loc
+        self.map[loc[0]][loc[1]].disaster = True #type: ignore
+        Agents.Agent.disaster_loc = loc
     
     #EFFECT: updates every agent on the grid
     def update(self):
@@ -220,44 +226,57 @@ class World():
             new_loc = agent.location
 
             self.map[old_loc[0], old_loc[1]].occupant = None # type: ignore
-            self.map[new_loc[0], new_loc[1]].occupant = agent # type: ignore
 
-    # Draws map
+            if isinstance(agent, Agents.Civilian):
+                if agent.pattern is not Agents.Civilian.Pattern.SAFE: #type: ignore
+                    self.map[new_loc[0], new_loc[1]].occupant = agent # type: ignore
+
     def draw(self) -> None:
         """
         Renders the current simulation state to console using ASCII characters.
         
         Displays a grid representation where:
         - '█' represents buildings (non-traversable)
-        - '·' represents empty roads
-        - 'C' represents civilians
+        - ' ' represents empty roads (space for better visibility)
+        - 'o' represents wandering civilians
+        - '!' represents fleeing civilians  
+        - 'S' represents safe civilians
+        - 'X' represents disaster location
         - 'P' represents paramedics (when implemented)
         - 'F' represents firefighters (when implemented)
-        
-        Useful for debugging agent movement and initial testing before 
-        implementing full graphical visualization.
-        
-        Output:
-            Prints grid to console with coordinate labels
         """
-        print("\n  ", end="")
-        # Print column numbers
+        print("\n" + "="*50)  # Separator line
+        print("  ", end="")
+        
+        # Print column numbers (every 5th for readability)
         for x in range(len(self.map[0])):
-            print(f"{x} ", end="")
+            if x % 5 == 0:
+                print(f"{x:2}", end="")
+            else:
+                print("  ", end="")
         print()
         
         # Print each row
         for y in range(len(self.map)):
-            print(f"{y} ", end="")
+            print(f"{y:2} ", end="")  # Row number with padding
+            
             for x in range(len(self.map[y])):
                 cell = self.map[y][x]
-                if not cell.is_road:
+                
+                # Check if this is disaster location
+                if cell.disaster:
+                    print("X ", end="")
+                elif not cell.is_road:
                     print("█ ", end="")
                 elif cell.occupant is None:
-                    print("· ", end="")
+                    print("  ", end="")  # Empty space instead of dot
                 elif isinstance(cell.occupant, Agents.Civilian):
-                    print("C ", end="")
-                # Add more agent types as needed
+                    if cell.occupant.pattern == Agents.Civilian.Pattern.FLEE:
+                        print("! ", end="")  # Fleeing
+                    elif cell.occupant.pattern == Agents.Civilian.Pattern.SAFE:
+                        print("S ", end="")  # Safe
+                    else:
+                        print("o ", end="")  # Wandering
                 else:
                     print("? ", end="")
             print()
@@ -300,14 +319,27 @@ if __name__ == "__main__":
             map_array[y, x] = Cell(test_grid[y][x])
 
     # Create world
-    world = World(num_civilians=600, num_paramedics=0, num_firefighters=0, map=map_array) #type: ignore
+    world = World(num_civilians=550, num_paramedics=0, num_firefighters=0, map=map_array) #type: ignore
 
-    """ for i in range(10000):
+    for i in range(100):
+        start = time.time()
         world.update()
+        print(f"Update took: {time.time() - start:.3f} seconds")
         world.draw()
-        #time.sleep(0.005)  """
     
-    import time
+    world.set_disaster_loc((29, 24))
+    
+    for i in range(100):
+        start = time.time()
+        world.update()
+        print(" ")
+        print(f"Update took: {time.time() - start:.3f} seconds")
+        world.draw()
+
+        #time.sleep(1) 
+
+    
+    """ import time
     start = time.time()
     world.update()
-    print(f"Update took: {time.time() - start:.3f} seconds")
+    print(f"Update took: {time.time() - start:.3f} seconds") """

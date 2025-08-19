@@ -1,8 +1,11 @@
 import numpy as np
 from enum import Enum
+from typing import Callable
 from abc import ABC, abstractmethod
 import math
 import heapq
+import random
+import operator
 
 
 """
@@ -21,6 +24,9 @@ behaviors and priorities during emergency scenarios.
 """
 
 class Agent(ABC):
+
+    disaster_loc: tuple = None #type: ignore
+
     def __init__(self, location: tuple, road_graph: dict, target: tuple):
         self.location: tuple = location
         self.perception: np.ndarray = None # type: ignore
@@ -84,6 +90,7 @@ class Agent(ABC):
                     f = tentative_g + heuristic
                     heapq.heappush(to_be_visited, (f, neighbor))
                     came_from[neighbor] = current
+        return []
 
     
     #Find path helper
@@ -179,7 +186,7 @@ class Civilian(Agent):
     Civilians operate with two independent systems:
     - Behavioral patterns that determine their goals and movement style:
         - Wander: Purposeful movement between target locations along roads
-        - Flee: Maximum speed evacuation toward nearest map edge when catastrophe strikes  
+        - Flee: Evacuation toward nearest map edge when catastrophe strikes  
         - Safe: Successfully escaped the simulation area
     - Health states that affect their physical capabilities:
         - Healthy: Full movement speed (90% of civilians at start)
@@ -193,7 +200,14 @@ class Civilian(Agent):
 
     Civilians perceive their local environment as a grid centered on their position,
     allowing them to detect nearby agents, obstacles, and potential escape routes.
+
+    Every civilian has an innate knowledge of where the disaster is as soon as one civilian
+    encounters it, this knowledge, however, is only activated once a civilian has entered the "Flee" state
     """
+
+    # list of all safe cells on the map (cells at the edge of the map)
+    # populated by the first agent that needs it, then simply referenced by all the other ones
+    safe_cells: np.ndarray = np.array([])
 
     #Choices of Civilian Pattern
     class Pattern(Enum):
@@ -218,22 +232,152 @@ class Civilian(Agent):
 
     #updates this civilians position
     def update(self):
+        if self.pattern == self.Pattern.SAFE:
+            return
+
+        self.check_perception()
+        
+        # Check if at edge (for fleeing agents)
+        if self.pattern == self.Pattern.FLEE:
+            if any(np.array_equal(self.location, edge) for edge in self.safe_cells):
+                self.pattern = self.Pattern.SAFE
+                print("Agent safe")
+                return  # Don't move anymore
+        
         if self.path:
             self.location = self.follow_path()
         else:
-            # Reached destination, find new target
-            self.target = self.find_target()
-            self.path = self.find_path(self.target)
+            if self.pattern == self.Pattern.WANDER:
+                self.target = self.find_target()
+                self.path = self.find_path(self.target)
+            # If fleeing and no path, try to find new flee target
+            elif self.pattern == self.Pattern.FLEE:
+                self.target = self.find_target()
+                self.path = self.find_path(self.target)
 
     def find_target(self) -> tuple: # type: ignore
+        """
+        Determines the agent's target destination based on their current behavioral pattern.
+        
+        Returns different targets depending on pattern:
+        - WANDER: Random road cell from anywhere on the map
+        - FLEE: Nearest edge cell that doesn't require moving toward the disaster.
+            Lazily initializes and caches all edge road cells on first flee.
+            Filters edges based on agent's position relative to disaster to ensure
+            movement is always away from danger. Uses Chebyshev distance for selection.
+        - SAFE: Current location (agent has escaped and stays put)
+        
+        Returns:
+            tuple: (y, x) coordinates of the target destination
+        """
+
+        road_cells = list(self.road_graph.keys())
+
         if self.pattern == self.Pattern.WANDER:
-            import random
-            road_cells = list(self.road_graph.keys())
             return road_cells[random.randrange(len(road_cells))]
+        
         elif self.pattern == self.Pattern.FLEE:
-            # Find nearest edge (implement later)
-            pass
+            #check if the self.safe_cells list has been populated, if not, populate is
+            if len(self.safe_cells) == 0:
+
+                #keeps track of the largest x and y values (map edges)
+                y_size, x_size = (0, 0)
+                for cell in road_cells:
+                    y, x = cell
+
+                    if y > y_size:
+                        y_size = y
+                    if x > x_size:
+                        x_size = x
+
+                #populates slf.safe_cells with the list of valid edge cells
+                # valid edge cells are used by iterating up until y_size and x_size (which are the map edges) and checking if they exist in
+                # road_cells
+                safe_cell_list: list = []
+
+                for i in range(y_size + 1):
+                    if (i, x_size) in road_cells:
+                        safe_cell_list.append((i, x_size))
+                    if (i, 0) in road_cells:
+                        safe_cell_list.append((i, 0))
+                
+                for j in range(x_size + 1):
+                    if (y_size, j) in road_cells:
+                        safe_cell_list.append((y_size, j))
+
+                    if (0, j) in road_cells:
+                        safe_cell_list.append((0, j))
+                
+                self.safe_cells: np.ndarray = np.array(safe_cell_list)
+            
+            """
+            The following piece of code finds the safe_cell that is the closest to the civilian that doesn't require moving towards the catastrophe
+            to reach. It does this by:
+
+            1. Checking where the agent is relative to the disaster (mathematically)
+            2. Filtering all safe cells 
+            3. looping through to find the closest safe cell by Chebyshev distance
+            """
+
+            # contain signs (<=, >=) that are used to filter out safe cells that will put agent in harm's way
+            relative_location_y: Callable[[int, int], bool] = None #type: ignore
+            relative_location_x: Callable[[int, int], bool] = None #type: ignore
+
+            # decides which signs to use
+            if self.disaster_loc[0] <= self.location[0]:
+                relative_location_y = operator.ge
+            else:
+                relative_location_y = operator.le
+            
+            if self.disaster_loc[1] <= self.location[1]:
+                relative_location_x = operator.ge
+            else:
+                relative_location_x = operator.le
+            
+            # filters the indices that are safe to travel towards
+            valid_indices = np.where((relative_location_y(self.safe_cells[:, 0], self.location[0])) & (relative_location_x(self.safe_cells[:, 1], self.location[1])))
+
+            # uses chebyshev distance to find the closest one
+            closest_safe_cell: tuple = self.location
+            min_distance: float = math.inf
+            for i in valid_indices[0]:
+                heuristic: float = max(abs(self.safe_cells[i, 0] - self.location[0]), abs(self.safe_cells[i, 1] - self.location[1]))
+                if  heuristic < min_distance:
+                    closest_safe_cell = self.safe_cells[i] #type: ignore
+                    min_distance = heuristic
+            
+            """ print(" ")
+            print(f"Agent at {self.location}, disaster at {self.disaster_loc}")
+            print(f"Relative: y={relative_location_y}, x={relative_location_x}")
+            print(f"Valid edges found: {len(valid_indices[0])}")
+            if len(valid_indices[0]) > 0:
+                print(f"First few valid edges: {[self.safe_cells[i] for i in valid_indices[0][:5]]}")
+            
+            print(tuple(closest_safe_cell)) """
+            
+            return tuple(closest_safe_cell)
+
+
         elif self.pattern == self.Pattern.SAFE:
             # Already safe, stay put
             return self.location
+        
+    #checks perception to modify state
+    def check_perception(self):
+        if self.pattern == self.Pattern.FLEE or self.pattern == self.Pattern.SAFE:
+            return  # Already fleeing/safe, don't check again
+
+        num_fleeing_agents = 0
+
+        for cell in self.perception.flatten():
+            if isinstance(cell.occupant, Civilian):
+                if cell.occupant.pattern == Civilian.Pattern.FLEE:
+                    num_fleeing_agents += 1
+
+            if cell.disaster or num_fleeing_agents > 3:
+                self.pattern = self.Pattern.FLEE
+                self.target = self.find_target()
+                self.path = self.find_path(self.target)
+                break
+            
         
