@@ -100,9 +100,8 @@ Police Agents proved to require a lot of complexity to be even remotely accurate
 ---
 ## Project Status
 ### Completed
-- Cevilian scaffolding
-- General Agent spawn
-- General Agent awareness
+- Agent spawn
+- Agent awareness
 - Agent Pathfinding
 - Agent pathfollowing and local avoidance
 - Civilian Wander
