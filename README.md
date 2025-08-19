@@ -105,14 +105,15 @@ Police Agents proved to require a lot of complexity to be even remotely accurate
 - General Agent awareness
 - Agent Pathfinding
 - Agent pathfollowing and local avoidance
+- Civilian Wander
+- Civilian Flee (performance bottlenecks)
 
 
 ### In Progress
-- Agent destination decisions
-- Proper Agent movement at intersection
+- Performance improvements
+- Civilian State Machine
 
 ### Planned
-- Advanced agent pathfinding and reactions to surroudings(Repath Penalty)
 - Paramedic scaffolding
 - Firefighter scaffolding
 
