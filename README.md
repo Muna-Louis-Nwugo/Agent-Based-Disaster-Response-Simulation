@@ -63,8 +63,6 @@ Each agent has different states and decision-making patterns to realistically si
 - Gravely Injured: Second stage of injury, civilian's condition deteriorates rapidly
 - Deceased: Civilian has died (RIP)
 
-##### Civilian states affects maximum civilian speed
-
 ### Paramedic
 **Patterns: Civilian Priority, Catastrophe Priority**
 - Civilian Priority: Paramedic focuses on tending to injured civilian target before heading to catastrophe zone
