@@ -107,7 +107,6 @@ Police Agents proved to require a lot of complexity to be even remotely accurate
 
 
 ### In Progress
-- Performance improvements
 - Civilian State Machine
 
 ### Planned
