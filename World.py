@@ -2,6 +2,10 @@ import Agents
 import numpy as np
 import random
 import time
+from WorldEvents import post
+from WorldHandlers import set_subscribe
+set_subscribe()
+
 
 """
 World Module - Main simulation engine for the Urban Catastrophe Simulation.
@@ -57,7 +61,7 @@ class World():
         self.agents: list[Agents.Agent] = []
         self.wall = Cell(False)
 
-        self.agent_spawn(self.num_civilians, Agents.Civilian)
+        self.civilian_spawn(self.num_civilians)
         """ self.agent_spawn(self.num_paramedics, Agents.Paramedic)
         self.agent_spawn(self.num_firefighters, Agents.Firefighter) """
 
@@ -108,39 +112,43 @@ class World():
         return graph
 
     
-    # EFFECT: Spawns agents in the grid
-    def agent_spawn(self, num_agents: int, agent_type: type) -> None:
+    # EFFECT: Spawns civilians in the grid
+    def civilian_spawn(self, num_civilians: int) -> None:
         """
-        Spawns the specified number of agents randomly on available road cells.
+        Spawns the specified number of civilians randomly on available road cells.
         
         Iterates through random road positions until all agents are placed. Ensures
         no two agents occupy the same cell during initialization. Each agent receives
         its initial perception and movement options based on spawn location.
         
         Args:
-            num_agents: Number of agents to spawn
-            agent_type: Class type of agent to spawn (e.g., Agents.Civilian)
+            num_civilians: Number of agents to spawn
         
         Side Effects:
-            - Adds agents to self.agents list
+            - Adds civilians to self.agents list
             - Updates cell occupancy in self.map
-            - Sets initial perception for each spawned agent
+            - Sets initial perception for each spawned civilian
+            - Sets 10% of spawned civilians to the "SICK" health state
         """
 
         road_list: list[tuple] = list(self.road_graph.keys())
 
-        while num_agents > 0:
+        while num_civilians > 0:
             rand_num = random.randrange(0, len(road_list))
             desired_cell = road_list[rand_num]
 
             if self.map[desired_cell[0], desired_cell[1]].occupant is not None: # type: ignore #checks if a cell is already occupied
                 continue
             else:
-                new_agent = agent_type(desired_cell, self.road_graph)
-                self.set_perception(new_agent)
-                self.map[desired_cell[0], desired_cell[1]].occupant = new_agent # type: ignore
-                self.agents.append(new_agent)
-                num_agents -= 1
+                new_civilian: Agents.Civilian = Agents.Civilian(desired_cell, self.road_graph)
+                self.set_perception(new_civilian)
+                self.map[desired_cell[0], desired_cell[1]].occupant = new_civilian #type: ignore
+                self.agents.append(new_civilian)
+
+                if random.random() <= 0.1:
+                    new_civilian.health_state = Agents.Civilian.HealthState.SICK
+
+                num_civilians -= 1
     
     
     # EFFECT: initializes agent perception
@@ -184,17 +192,17 @@ class World():
 
         padded_perception = np.pad(perception, ((y_start_pad, y_end_pad), (x_start_pad, x_end_pad)), mode="constant", constant_values= self.wall) # type: ignore
         
-        """ # Now you know where agent is in perception:
-        agent_y_in_perception = y - y_start
-        agent_x_in_perception = x - x_start """
-        
         agent.perception = padded_perception
 
     #sets the location of a disaster
     def set_disaster_loc(self, loc: tuple):
+        """
+        """
         self.disaster_loc = loc
         self.map[loc[0]][loc[1]].disaster = True #type: ignore
         Agents.Agent.disaster_loc = loc
+        post("disaster_start", {"world": self, "disaster_location": loc})
+
     
     #EFFECT: updates every agent on the grid
     def update(self):
@@ -324,21 +332,21 @@ if __name__ == "__main__":
     for i in range(300):
         start = time.time()
         world.update()
-        print(f"Update took: {time.time() - start:.3f} seconds")
+        #print(f"Update took: {time.time() - start:.3f} seconds")
         world.draw()
         time.sleep(0.05)
     
-    world.set_disaster_loc((29, 24))
     print("CATASTROPHE COMMENCED")
+    world.set_disaster_loc((29, 25))
     
     for i in range(300):
         start = time.time()
         world.update()
-        print(" ")
-        print(f"Update took: {time.time() - start:.3f} seconds")
+        #print(" ")
+        #print(f"Update took: {time.time() - start:.3f} seconds")
         world.draw()
 
-        time.sleep(0.05) 
+        #time.sleep(0.05) 
 
     
     """ import time

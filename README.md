@@ -103,7 +103,8 @@ Police Agents proved to require a lot of complexity to be even remotely accurate
 - Agent Pathfinding
 - Agent pathfollowing and local avoidance
 - Civilian Wander
-- Civilian Flee (performance bottlenecks)
+- Catastrophy initialization and Civilian injury/death
+- Civilian Flee
 
 
 ### In Progress
@@ -112,4 +113,3 @@ Police Agents proved to require a lot of complexity to be even remotely accurate
 ### Planned
 - Paramedic scaffolding
 - Firefighter scaffolding
-

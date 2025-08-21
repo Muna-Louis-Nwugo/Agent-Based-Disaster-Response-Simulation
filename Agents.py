@@ -232,7 +232,7 @@ class Civilian(Agent):
 
     #updates this civilians position
     def update(self):
-        if self.pattern == self.Pattern.SAFE:
+        if self.pattern == self.Pattern.SAFE or self.health_state == self.HealthState.DECEASED:
             return
 
         self.check_perception()
@@ -249,10 +249,7 @@ class Civilian(Agent):
         else:
             if self.pattern == self.Pattern.WANDER:
                 self.target = self.find_target()
-                self.path = self.find_path(self.target)
-            # If fleeing and no path, try to find new flee target
-            elif self.pattern == self.Pattern.FLEE:
-                self.path = self.find_path(self.target)
+            self.path = self.find_path(self.target)
 
     def find_target(self) -> tuple: # type: ignore
         """
@@ -377,5 +374,17 @@ class Civilian(Agent):
                 self.target = self.find_target()
                 self.path = self.find_path(self.target)
                 break
+    
+    #sets this civilian to the desired injury level
+    def set_injury(self, injury_level: HealthState):
+        if injury_level == self.HealthState.DECEASED:
+            self.health_state = self.HealthState.DECEASED
+            print("civilian dead.")
+        elif injury_level == self.HealthState.INJURED and self.health_state == self.HealthState.HEALTHY:
+            self.health_state = self.HealthState.INJURED
+            print("civilian injured")
+        else: 
+            self.health_state = self.HealthState.GRAVELY_INJURED
+            print("civilian gravely injured")
             
         
