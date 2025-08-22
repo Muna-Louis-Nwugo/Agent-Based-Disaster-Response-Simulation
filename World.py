@@ -340,20 +340,20 @@ if __name__ == "__main__":
         start = time.time()
         world.update()
         print(f"Update took: {time.time() - start:.3f} seconds")
-        world.draw()
+        #world.draw()
         #time.sleep(0.05)
     
     print("CATASTROPHE COMMENCED")
     world.set_disaster_loc((29, 25))
     
-    for i in range(300):
+    for i in range(350):
         start = time.time()
         world.update()
         print(" ")
         print(f"Update took: {time.time() - start:.3f} seconds")
-        world.draw()
+        #world.draw()
 
-        #time.sleep(0.05) 
+        time.sleep(0.02) # FIXME: Once the frontend is built, add a slider to be able to adjust the speed
 
     
     """ import time

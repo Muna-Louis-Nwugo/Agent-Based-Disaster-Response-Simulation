@@ -228,6 +228,7 @@ class Civilian(Agent):
         self.health_state: Civilian.HealthState = self.HealthState.HEALTHY
         self.max_speed: float = 0  # TODO: come up with maximum speed equation. 
         self.road_graph = road_graph
+        self.time_to_worsen: float = math.inf
         super().__init__(location, road_graph, self.find_target())
 
     #updates this civilians position
@@ -236,6 +237,7 @@ class Civilian(Agent):
             return
 
         self.check_perception()
+        self.worsen_health()
         
         # Check if at edge (for fleeing agents)
         if self.pattern == self.Pattern.FLEE:
@@ -358,7 +360,7 @@ class Civilian(Agent):
             return self.location
         
     #checks perception to modify state
-    def check_perception(self):
+    def check_perception(self) -> None:
         if self.pattern == self.Pattern.WANDER:
             self.check_perception_wander()
         elif self.pattern == self.Pattern.FLEE:
@@ -368,7 +370,19 @@ class Civilian(Agent):
 
         
     #checks perception while wandering 
-    def check_perception_wander(self):
+    def check_perception_wander(self) -> None:
+        """
+        Checks civilian perception to decide whether this civilian should flee
+
+        Rules from the civilian's perspective:
+            1. If I'm already fleeing or safe, do not check my perception
+            2. If I see a disaster, flee
+            3. If I see more than 5 other civilians fleeing, flee
+
+        Side Effects:
+            Modifies this civilian's behavioral pattern.
+        """
+
         if self.pattern == self.Pattern.FLEE or self.pattern == self.Pattern.SAFE:
             return  # Already fleeing/safe, don't check again
 
@@ -386,12 +400,20 @@ class Civilian(Agent):
                 break
     
 
-    def check_perception_flee(self):
+    # checks perception during fleeing
+    def check_perception_flee(self) -> None:
+        """
+        Gives each agent a chance of getting more severely injured during a crowd scenario
+
+        Method:
+            1. counts the number of agents arround
+            2. if that number is over 20, 5% chance that the injury worsens
+        """
         total_surrounding = sum([
             1 for cell in self.perception.flatten() 
             if cell.occupant is not None
             and cell.occupant != self
-            and cell.occupant.health_state != self.HealthState.DECEASED  # Dead don't push
+            and cell.occupant.health_state != self.HealthState.DECEASED  # Dead people can't trample
             ])
 
         if total_surrounding >= 20:
@@ -400,7 +422,25 @@ class Civilian(Agent):
 
     
     #sets this civilian to the desired injury level
-    def set_injury(self, injury_level: HealthState):
+    def set_injury(self, injury_level: HealthState) -> None:
+        """
+        Transitions civilian's health state based on injury severity and current condition.
+        
+        State transition rules:
+        - GRAVELY_INJURED civilians always die regardless of new injury
+        - Attempting to set DECEASED always results in death
+        - HEALTHY civilians set to INJURED become INJURED
+        - All other combinations escalate to GRAVELY_INJURED (includes SICK taking any
+        injury, INJURED taking another injury, or direct grave injury assignment)
+        
+        Args:
+            injury_level: Target HealthState to apply to the civilian
+            
+        Side Effects:
+            - Updates self.health_state
+            - Prints injury status to console
+        """
+
         if injury_level == self.HealthState.DECEASED or self.health_state == self.HealthState.GRAVELY_INJURED:
             self.health_state = self.HealthState.DECEASED
             print("civilian dead.")
@@ -410,5 +450,46 @@ class Civilian(Agent):
         else: 
             self.health_state = self.HealthState.GRAVELY_INJURED
             print("civilian gravely injured")
-            
+    
+    
+    # worsens health over time after injure   
+    def worsen_health(self) -> None:
+        """
+        Progresses injury states over time, simulating deteriorating health without medical attention.
         
+        Injured civilians deteriorate to gravely injured after 60 ticks, then to deceased after 
+        20 additional ticks. Uses a countdown timer (time_to_worsen) that initializes to infinity
+        when unset, then counts down to zero to trigger state transitions.
+        
+        State progression:
+            INJURED -> (60 ticks) -> GRAVELY_INJURED -> (20 ticks) -> DECEASED
+        
+        No effect on HEALTHY, SICK, or already DECEASED civilians.
+        Must be called each update tick for injured civilians.
+        """
+        time_to_grave_injury: float = 60
+        time_to_death: float = 20
+
+        if self.health_state == self.HealthState.HEALTHY or self.health_state == self.HealthState.SICK or self.health_state == self.HealthState.DECEASED:
+            return
+        
+        elif self.health_state == self.HealthState.INJURED:
+            if self.time_to_worsen == math.inf:
+                self.time_to_worsen = time_to_grave_injury
+
+            elif self.time_to_worsen == 0:
+                self.set_injury(self.HealthState.GRAVELY_INJURED)
+                self.time_to_worsen = time_to_death
+
+            else:
+                self.time_to_worsen -= 1
+
+        elif self.health_state == self.HealthState.GRAVELY_INJURED:
+            if self.time_to_worsen == math.inf:
+                self.time_to_worsen = time_to_death
+
+            elif self.time_to_worsen == 0:
+                self.set_injury(self.HealthState.DECEASED)
+
+            else:
+                self.time_to_worsen -= 1
