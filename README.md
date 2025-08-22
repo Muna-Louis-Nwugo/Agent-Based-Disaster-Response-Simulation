@@ -102,14 +102,13 @@ Police Agents proved to require a lot of complexity to be even remotely accurate
 - Agent awareness
 - Agent Pathfinding
 - Agent pathfollowing and local avoidance
-- Civilian Wander
-- Catastrophy initialization and Civilian injury/death
-- Civilian Flee
+- Catastrophy initialization
+- Civilian Patterns
+- Civilian Health State Machine
 
 
 ### In Progress
-- Civilian State Machine
+- Paramedic scaffolding
 
 ### Planned
-- Paramedic scaffolding
 - Firefighter scaffolding
