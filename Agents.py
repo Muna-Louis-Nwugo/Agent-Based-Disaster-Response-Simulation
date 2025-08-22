@@ -232,7 +232,7 @@ class Civilian(Agent):
 
     #updates this civilians position
     def update(self):
-        if self.pattern == self.Pattern.SAFE or self.health_state == self.HealthState.DECEASED:
+        if self.pattern == self.Pattern.SAFE or self.health_state == self.HealthState.DECEASED or self.health_state == self.HealthState.GRAVELY_INJURED:
             return
 
         self.check_perception()
@@ -359,6 +359,16 @@ class Civilian(Agent):
         
     #checks perception to modify state
     def check_perception(self):
+        if self.pattern == self.Pattern.WANDER:
+            self.check_perception_wander()
+        elif self.pattern == self.Pattern.FLEE:
+            self.check_perception_flee()
+        else:
+            return
+
+        
+    #checks perception while wandering 
+    def check_perception_wander(self):
         if self.pattern == self.Pattern.FLEE or self.pattern == self.Pattern.SAFE:
             return  # Already fleeing/safe, don't check again
 
@@ -375,9 +385,23 @@ class Civilian(Agent):
                 self.path = self.find_path(self.target)
                 break
     
+
+    def check_perception_flee(self):
+        total_surrounding = sum([
+            1 for cell in self.perception.flatten() 
+            if cell.occupant is not None
+            and cell.occupant != self
+            and cell.occupant.health_state != self.HealthState.DECEASED  # Dead don't push
+            ])
+
+        if total_surrounding >= 20:
+            if random.random() <= 0.05:
+                self.set_injury(self.HealthState.INJURED)
+
+    
     #sets this civilian to the desired injury level
     def set_injury(self, injury_level: HealthState):
-        if injury_level == self.HealthState.DECEASED:
+        if injury_level == self.HealthState.DECEASED or self.health_state == self.HealthState.GRAVELY_INJURED:
             self.health_state = self.HealthState.DECEASED
             print("civilian dead.")
         elif injury_level == self.HealthState.INJURED and self.health_state == self.HealthState.HEALTHY:

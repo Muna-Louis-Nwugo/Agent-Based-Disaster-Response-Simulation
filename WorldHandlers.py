@@ -3,7 +3,43 @@ import Agents
 import random
 import numpy as np
 
+"""
+WorldHandlers Module - Event response handlers for the Urban Catastrophe Simulation.
+
+This module contains handler functions that respond to system events and modify
+simulation state accordingly. It handles:
+- Disaster initiation and casualty distribution
+- Agent injury state transitions
+- Emergency response dispatch coordination
+- Dynamic system updates based on event triggers
+- Cross-module state modifications
+
+Handler functions receive event data as dictionaries and apply appropriate
+changes to the World and Agent states.
+"""
+
+
 def injure_near_disaster(data: dict):
+
+    """
+    Applies injury and death states to civilians within the disaster impact zone.
+    
+    Examines a 7x7 grid centered on the disaster location. Civilians in the 
+    immediately adjacent cells (death radius) are killed instantly. Civilians 
+    in the outer ring have a 50% chance of normal injury and 50% chance of 
+    grave injury, with sick civilians automatically progressing to grave injury
+    regardless of roll.
+    
+    Args:
+        data: Dictionary containing:
+            - world: World instance with the simulation state
+            - disaster_location: Tuple (y, x) coordinates of disaster epicenter
+    
+    Side Effects:
+        - Modifies health_state of affected civilian agents
+        - Deaths create permanent obstacles in the grid
+    """
+
     # extract data from dictionary
     world = data["world"]
     location: tuple = data["disaster_location"]

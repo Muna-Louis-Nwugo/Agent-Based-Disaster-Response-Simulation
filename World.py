@@ -246,12 +246,12 @@ class World():
         Displays a grid representation where:
         - '█' represents buildings (non-traversable)
         - ' ' represents empty roads (space for better visibility)
-        - 'o' represents wandering civilians
-        - '!' represents fleeing civilians  
-        - 'S' represents safe civilians
+        - 'h' represents healthy civilians
+        - 's' represents sick civilians
+        - 'i' represents injured civilians
+        - 'G' represents gravely injured civilians
+        - 'D' represents deceased civilians
         - 'X' represents disaster location
-        - 'P' represents paramedics (when implemented)
-        - 'F' represents firefighters (when implemented)
         """
         print("\n" + "="*50)  # Separator line
         print("  ", end="")
@@ -279,19 +279,26 @@ class World():
                 elif cell.occupant is None:
                     print("  ", end="")  # Empty space instead of dot
                 elif isinstance(cell.occupant, Agents.Civilian):
-                    if cell.occupant.pattern == Agents.Civilian.Pattern.FLEE:
-                        print("! ", end="")  # Fleeing
-                    elif cell.occupant.pattern == Agents.Civilian.Pattern.SAFE:
-                        print("S ", end="")  # Safe
+                    health = cell.occupant.health_state
+                    if health == Agents.Civilian.HealthState.HEALTHY:
+                        print("h ", end="")
+                    elif health == Agents.Civilian.HealthState.SICK:
+                        print("s ", end="")
+                    elif health == Agents.Civilian.HealthState.INJURED:
+                        print("i ", end="")
+                    elif health == Agents.Civilian.HealthState.GRAVELY_INJURED:
+                        print("G ", end="")
+                    elif health == Agents.Civilian.HealthState.DECEASED:
+                        print("D ", end="")
                     else:
-                        print("o ", end="")  # Wandering
+                        print("? ", end="")
                 else:
                     print("? ", end="")
             print()
 
 if __name__ == "__main__": 
     # Generate a 70x70 city grid with multi-lane roads
-    size = 70
+    size = 60
     test_grid = [[False for _ in range(size)] for _ in range(size)]
     
     # Create main avenues (3 lanes wide) every 10 blocks
@@ -327,14 +334,14 @@ if __name__ == "__main__":
             map_array[y, x] = Cell(test_grid[y][x])
 
     # Create world
-    world = World(num_civilians=500, num_paramedics=0, num_firefighters=0, map=map_array) #type: ignore
+    world = World(num_civilians=450, num_paramedics=0, num_firefighters=0, map=map_array) #type: ignore
 
     for i in range(300):
         start = time.time()
         world.update()
-        #print(f"Update took: {time.time() - start:.3f} seconds")
+        print(f"Update took: {time.time() - start:.3f} seconds")
         world.draw()
-        time.sleep(0.05)
+        #time.sleep(0.05)
     
     print("CATASTROPHE COMMENCED")
     world.set_disaster_loc((29, 25))
@@ -342,8 +349,8 @@ if __name__ == "__main__":
     for i in range(300):
         start = time.time()
         world.update()
-        #print(" ")
-        #print(f"Update took: {time.time() - start:.3f} seconds")
+        print(" ")
+        print(f"Update took: {time.time() - start:.3f} seconds")
         world.draw()
 
         #time.sleep(0.05) 
