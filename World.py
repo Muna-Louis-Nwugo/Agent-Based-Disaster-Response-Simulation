@@ -4,6 +4,7 @@ import random
 import time
 from WorldEvents import post
 from WorldHandlers import set_subscribe
+import math
 set_subscribe()
 
 
@@ -40,30 +41,34 @@ class World():
     Properties: 
         num_civilians -> Number of civilians on the map
         num_paramedics -> Number of paramedics on the map
-        num_firefighters -> Number of firefighters on the map
         cell_occupants -> Which cell is occupied and by which agent
-        map -> the grid map that the agents traverse along
+        map -> the grid map that the agents traverse along (numpy array of cells)
         road_graph -> a graphical representation of the grid map, except only including roads. Enables pathfinding around buildings
         disaster_loc -> the grid-coordinate location of the catastrophe
         agents -> list of all agents
         wall -> a cell object that represents out-of-grid cells. Cached for self.set_perception
+        paramedics -> a complete list of all the paramedics currently on the map
+        paramedic_spawn_locations -> list of paramedic spawn locations
 
         #Note: the grid map is to be made up of a 2d numpy array of Cell objects, to help each cell store data more effectively
     """
 
-    def __init__(self, num_civilians: int, num_paramedics: int, num_firefighters: int, map: np.ndarray[Cell], disaster_loc: tuple = None): # type: ignore
+    def __init__(self, num_civilians: int, num_paramedics: int, map: np.ndarray, paramedic_spawn_locations: list[tuple[int, int]] = [(20, 20), (20, 40), (40, 30)]):
         self.num_civilians: int = num_civilians
         self.num_paramedics: int = num_paramedics
-        self.num_firefighters: int = num_firefighters
-        self.map: np.ndarray[Cell] = map # type: ignore
+        self.map: np.ndarray = map 
         self.road_graph: dict = self.init_road_graph()
-        self.disaster_loc: tuple = disaster_loc
+        self.disaster_loc: tuple = None #type: ignore
         self.agents: list[Agents.Agent] = []
         self.wall = Cell(False)
+        self.paramedics: list[Agents.Paramedic] = []
+        self.paramedic_spawn_locations: list[tuple[int, int]] = paramedic_spawn_locations
 
         self.civilian_spawn(self.num_civilians)
-        """ self.agent_spawn(self.num_paramedics, Agents.Paramedic)
-        self.agent_spawn(self.num_firefighters, Agents.Firefighter) """
+
+        for y, x in self.paramedic_spawn_locations:
+            if not self.map[y][x].is_road:
+                raise ValueError(f"Hospital at {y, x} is situated on a building. Please place it on a road")
 
     
     
@@ -148,9 +153,9 @@ class World():
                 if random.random() <= 0.1:
                     new_civilian.health_state = Agents.Civilian.HealthState.SICK
 
-                num_civilians -= 1
-    
-    
+                num_civilians -= 1      
+
+
     # EFFECT: initializes agent perception
     def set_perception(self, agent) -> None:
         """
@@ -194,6 +199,7 @@ class World():
         
         agent.perception = padded_perception
 
+
     #sets the location of a disaster
     def set_disaster_loc(self, loc: tuple):
         """
@@ -203,7 +209,7 @@ class World():
         Agents.Agent.disaster_loc = loc
         post("disaster_start", {"world": self, "disaster_location": loc})
 
-    
+
     #EFFECT: updates every agent on the grid
     def update(self):
         """
@@ -238,6 +244,7 @@ class World():
             if isinstance(agent, Agents.Civilian):
                 if agent.pattern is not Agents.Civilian.Pattern.SAFE: #type: ignore
                     self.map[new_loc[0], new_loc[1]].occupant = agent # type: ignore
+
 
     def draw(self) -> None:
         """
@@ -334,7 +341,7 @@ if __name__ == "__main__":
             map_array[y, x] = Cell(test_grid[y][x])
 
     # Create world
-    world = World(num_civilians=450, num_paramedics=0, num_firefighters=0, map=map_array) #type: ignore
+    world = World(num_civilians=450, num_paramedics=0, map=map_array) #type: ignore
 
     for i in range(300):
         start = time.time()
@@ -353,7 +360,7 @@ if __name__ == "__main__":
         print(f"Update took: {time.time() - start:.3f} seconds")
         #world.draw()
 
-        time.sleep(0.02) # FIXME: Once the frontend is built, add a slider to be able to adjust the speed
+        #time.sleep(0.02) # FIXME: Once the frontend is built, add a slider to be able to adjust the speed
 
     
     """ import time

@@ -9,7 +9,7 @@ def subscribe(event_name: str, func) -> None:
     subscribers[event_name].append(func)
 
 # posts an event (alerts all subscribers)
-def post(event_name: str, data) :
+def post(event_name: str, data: dict) :
     #if an event doesn't exist and someone wants to post it, nothing is done.
     #ensures our subscribers dict isn't full of unused events
     if event_name not in subscribers :

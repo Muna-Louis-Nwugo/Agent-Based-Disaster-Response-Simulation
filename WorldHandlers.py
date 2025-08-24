@@ -17,9 +17,11 @@ simulation state accordingly. It handles:
 Handler functions receive event data as dictionaries and apply appropriate
 changes to the World and Agent states.
 """
+# To be populated with a World class reference upon initialization
+world = any
 
 
-def injure_near_disaster(data: dict):
+def injure_near_disaster(data: dict) -> None:
 
     """
     Applies injury and death states to civilians within the disaster impact zone.
@@ -38,9 +40,11 @@ def injure_near_disaster(data: dict):
     Side Effects:
         - Modifies health_state of affected civilian agents
         - Deaths create permanent obstacles in the grid
+        - Caches world reference for future use
     """
 
     # extract data from dictionary
+    global world
     world = data["world"]
     location: tuple = data["disaster_location"]
 
@@ -77,8 +81,86 @@ def injure_near_disaster(data: dict):
                         # gravely injures half of civilians outside blast radius
                         else:
                             cell.occupant.set_injury(Agents.Civilian.HealthState.GRAVELY_INJURED)
+
+def dispatch_paramedic(data: dict) -> None:
+    """
+    Dispatches a paramedic to respond to a gravely injured civilian.
     
+    Implements a three-tier dispatch strategy:
+    1. If paramedics are available to spawn, creates a new paramedic at the 
+       hospital closest to the victim and assigns them immediately.
+    2. If all paramedics are spawned, queries existing paramedics from closest 
+       to furthest, allowing each to accept/reject based on their queue capacity.
+    3. If all paramedics reject (at capacity), forces assignment to a random 
+       paramedic to ensure no civilian is abandoned.
+    
+    Args:
+        data: Dictionary containing:
+            - agent: The gravely injured Civilian requiring medical attention
+    
+    Side Effects:
+        - May spawn new Paramedic and add to world.paramedics and world.agents
+        - Updates paramedic's heal queue with the injured civilian
+        - Sets perception for newly spawned paramedics
+        
+    Note:
+        Requires cached world reference from disaster initialization.
+        Uses Chebyshev distance for proximity calculations.
+    """
+
+    # gets the civilian information from the provided data
+    agent = data["agent"]   
+    agent_location = agent.location 
+
+    #checks if we can still spawn more paramedics
+    if len(world.paramedics) < world.num_paramedics:
+        # finds the closest spawn location to the civiliian
+        best_spawn_location: tuple = min(world.paramedic_spawn_locations, 
+                                         key= lambda x: max(abs(x[0] - agent_location[0]), abs(x[1] - agent_location[1]))) 
+
+        # spawns paramedic at nearest spawn location
+        from Agents import Paramedic
+        new_paramedic = Paramedic(best_spawn_location, world.road_graph) 
+        world.paramedics.append(new_paramedic)
+        world.agents.append(new_paramedic)
+        world.set_perception(new_paramedic)
+        new_paramedic.add_to_heal_queue(agent)
+
+    else:
+        # makes a sorted copy of the list of all paramedics, sorted from closest to fartheset
+        temp_paramedics = sorted(world.paramedics, key= lambda x: max(abs(x.location[0] - agent_location[0]), abs(x.location[1] - agent_location[1])))
+        # keeps track of whether this agent has been assigned to a paramedic
+        assigned_paramedic: Agents.Paramedic = None  #type: ignore
+
+
+        #this function recursively 
+        def ask_paramedic() -> None:
+            nonlocal assigned_paramedic
+            # checks if there are any more paramedics
+            if len(temp_paramedics) == 0:
+                return
+            
+            paramedic = temp_paramedics.pop(0)
+
+            # tries to assign this agent to a paramedic
+            accepted_assignment: bool = paramedic.add_to_heal_queue(agent)
+            
+            # if assignment is successful, then tell the outside
+            if accepted_assignment:
+                assigned_paramedic = paramedic
+            # otherwise, check the next in line
+            else:
+                ask_paramedic()
+                
+        
+        ask_paramedic()   
+
+        if assigned_paramedic == None:
+            random_paramedic: Agents.Paramedic = random.choice(world.paramedics)
+            random_paramedic.heal_queue.append(agent)
+
 
 
 def set_subscribe():
     subscribe("disaster_start", injure_near_disaster)
+    subscribe("help_needed", dispatch_paramedic)

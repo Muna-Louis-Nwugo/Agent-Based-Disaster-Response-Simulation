@@ -2,10 +2,15 @@ import numpy as np
 from enum import Enum
 from typing import Callable
 from abc import ABC, abstractmethod
+from WorldEvents import post
+from WorldHandlers import set_subscribe
 import math
 import heapq
 import random
 import operator
+
+# sets up listeners
+set_subscribe()
 
 
 """
@@ -232,7 +237,7 @@ class Civilian(Agent):
         super().__init__(location, road_graph, self.find_target())
 
     #updates this civilians position
-    def update(self):
+    def update(self) -> None:
         if self.pattern == self.Pattern.SAFE or self.health_state == self.HealthState.DECEASED or self.health_state == self.HealthState.GRAVELY_INJURED:
             return
 
@@ -439,17 +444,20 @@ class Civilian(Agent):
         Side Effects:
             - Updates self.health_state
             - Prints injury status to console
+            - dispatches an ambulance
         """
 
         if injury_level == self.HealthState.DECEASED or self.health_state == self.HealthState.GRAVELY_INJURED:
             self.health_state = self.HealthState.DECEASED
-            print("civilian dead.")
+            print("civilian dead")
         elif injury_level == self.HealthState.INJURED and self.health_state == self.HealthState.HEALTHY:
             self.health_state = self.HealthState.INJURED
             print("civilian injured")
         else: 
             self.health_state = self.HealthState.GRAVELY_INJURED
             print("civilian gravely injured")
+            post("help_needed", {"agent": self})
+
     
     
     # worsens health over time after injure   
@@ -493,3 +501,26 @@ class Civilian(Agent):
 
             else:
                 self.time_to_worsen -= 1
+
+
+class Paramedic(Agent):
+
+    class Pattern(Enum):
+        DEPLOYED = 2
+
+    def __init__(self, spawn_location: tuple, road_graph: dict):
+        self.heal_queue: list = []
+
+        super().__init__(self.spawn(), road_graph, self.find_target())
+
+    def add_to_heal_queue(self, agent: Civilian) -> bool:
+        return True
+
+    def spawn(self) -> tuple: #type: ignore
+        pass
+
+    def update(self) -> None:
+        return super().update()
+
+    def find_target(self) -> tuple:
+        return self.heal_queue.pop(0)
