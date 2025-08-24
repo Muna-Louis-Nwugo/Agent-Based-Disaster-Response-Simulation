@@ -3,14 +3,10 @@ from enum import Enum
 from typing import Callable
 from abc import ABC, abstractmethod
 from WorldEvents import post
-from WorldHandlers import set_subscribe
 import math
 import heapq
 import random
 import operator
-
-# sets up listeners
-set_subscribe()
 
 
 """
@@ -508,8 +504,10 @@ class Paramedic(Agent):
     class Pattern(Enum):
         DEPLOYED = 2
 
-    def __init__(self, spawn_location: tuple, road_graph: dict):
-        self.heal_queue: list = []
+    def __init__(self, spawn_location: tuple, road_graph: dict, global_map: np.ndarray, in_danger: Civilian = None): #type: ignore
+        self.heal_queue: list = [in_danger]
+        self.spawn_location: tuple = spawn_location
+        self.global_map: np.ndarray = global_map
 
         super().__init__(self.spawn(), road_graph, self.find_target())
 
@@ -517,10 +515,19 @@ class Paramedic(Agent):
         return True
 
     def spawn(self) -> tuple: #type: ignore
-        pass
+        civilian_in_danger: Civilian = self.heal_queue[0]
+
+        spawn_relative_to_disaster = [(-1, -1), (-1, 0), (0, -1), (0, 0), (0, 1), (1, 0), (1, 1), (1, -1), (-1, 1),]
+        valid_spawn_locations = [(self.spawn_location[0] + y, self.spawn_location[1] + x) for y, x in spawn_relative_to_disaster
+                                 if 0 <= self.spawn_location[0] + y < self.global_map.shape[0]
+                                 and 0 <= self.spawn_location[1] + x < self.global_map.shape[1]
+                                 and self.global_map[self.spawn_location[0] + y][self.spawn_location[1] + x].is_road #type: ignore
+                                 and self.global_map[self.spawn_location[0] + y][self.spawn_location[1] + x].occupant is None] # type: ignore
+
+        return min(valid_spawn_locations, key=lambda x: max(abs(x[0] - civilian_in_danger.location[0]), (x[1] - civilian_in_danger.location[1])))
 
     def update(self) -> None:
         return super().update()
 
     def find_target(self) -> tuple:
-        return self.heal_queue.pop(0)
+        return self.heal_queue.pop(0).location

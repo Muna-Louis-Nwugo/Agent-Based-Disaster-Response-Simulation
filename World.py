@@ -341,7 +341,7 @@ if __name__ == "__main__":
             map_array[y, x] = Cell(test_grid[y][x])
 
     # Create world
-    world = World(num_civilians=450, num_paramedics=0, map=map_array) #type: ignore
+    world = World(num_civilians=450, num_paramedics=5, map=map_array) #type: ignore
 
     for i in range(300):
         start = time.time()

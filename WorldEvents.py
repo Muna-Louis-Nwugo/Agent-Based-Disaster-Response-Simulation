@@ -6,7 +6,9 @@ def subscribe(event_name: str, func) -> None:
     #if an event doesn't exist and someone wants to subscribe to it, the event is created
     if event_name not in subscribers :
         subscribers[event_name] = []
-    subscribers[event_name].append(func)
+
+    if func not in subscribers[event_name]:
+        subscribers[event_name].append(func)
 
 # posts an event (alerts all subscribers)
 def post(event_name: str, data: dict) :

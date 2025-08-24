@@ -107,60 +107,85 @@ def dispatch_paramedic(data: dict) -> None:
         Requires cached world reference from disaster initialization.
         Uses Chebyshev distance for proximity calculations.
     """
+    print("Trying paramedic dispatch")
 
     # gets the civilian information from the provided data
     agent = data["agent"]   
-    agent_location = agent.location 
 
     #checks if we can still spawn more paramedics
     if len(world.paramedics) < world.num_paramedics:
-        # finds the closest spawn location to the civiliian
-        best_spawn_location: tuple = min(world.paramedic_spawn_locations, 
-                                         key= lambda x: max(abs(x[0] - agent_location[0]), abs(x[1] - agent_location[1]))) 
-
-        # spawns paramedic at nearest spawn location
-        from Agents import Paramedic
-        new_paramedic = Paramedic(best_spawn_location, world.road_graph) 
-        world.paramedics.append(new_paramedic)
-        world.agents.append(new_paramedic)
-        world.set_perception(new_paramedic)
-        new_paramedic.add_to_heal_queue(agent)
-
+        spawn_paramedic(agent)
     else:
-        # makes a sorted copy of the list of all paramedics, sorted from closest to fartheset
-        temp_paramedics = sorted(world.paramedics, key= lambda x: max(abs(x.location[0] - agent_location[0]), abs(x.location[1] - agent_location[1])))
-        # keeps track of whether this agent has been assigned to a paramedic
-        assigned_paramedic: Agents.Paramedic = None  #type: ignore
+        select_paramedic(agent)
 
 
-        #this function recursively 
-        def ask_paramedic() -> None:
-            nonlocal assigned_paramedic
-            # checks if there are any more paramedics
-            if len(temp_paramedics) == 0:
-                return
-            
-            paramedic = temp_paramedics.pop(0)
+def spawn_paramedic(agent):
+    print("Trying paramedic spawn")
+    agent_location: tuple = agent.location  
+    # finds the closest spawn location to the civiliian
+    sorted_spawn_locations: list[tuple[int, int]] = sorted(world.paramedic_spawn_locations, 
+                                        key= lambda x: max(abs(x[0] - agent_location[0]), abs(x[1] - agent_location[1]))) 
 
-            # tries to assign this agent to a paramedic
-            accepted_assignment: bool = paramedic.add_to_heal_queue(agent)
-            
-            # if assignment is successful, then tell the outside
-            if accepted_assignment:
-                assigned_paramedic = paramedic
-            # otherwise, check the next in line
-            else:
-                ask_paramedic()
-                
+    # spawns paramedic at nearest spawn location
+    from Agents import Paramedic 
+
+    def spawn_paramedic_inner():
+        if len(sorted_spawn_locations) < 1:
+            print("New paramedic spawn failedS")
+            select_paramedic(agent)
         
-        ask_paramedic()   
+        try:
+            new_paramedic = Paramedic(sorted_spawn_locations.pop(0), world.road_graph, world.map, agent)
+        except:
+            print("Paramedic failed to spawn, trying again")
+            spawn_paramedic_inner()
+        else:
+            world.paramedics.append(new_paramedic)
+            world.agents.append(new_paramedic)
+            world.set_perception(new_paramedic)
+            print("Paramedic successfully spawned")
+    
+    spawn_paramedic_inner()
 
-        if assigned_paramedic == None:
-            random_paramedic: Agents.Paramedic = random.choice(world.paramedics)
-            random_paramedic.heal_queue.append(agent)
+
+def select_paramedic(agent):
+    print("Trying paramedic selection")
+    agent_location: tuple = agent.location
+    # makes a sorted copy of the list of all paramedics, sorted from closest to fartheset
+    temp_paramedics = sorted(world.paramedics, key= lambda x: max(abs(x.location[0] - agent_location[0]), abs(x.location[1] - agent_location[1])))
+    # keeps track of whether this agent has been assigned to a paramedic
+    assigned_paramedic: Agents.Paramedic = None  #type: ignore
+
+
+    #this function recursively 
+    def ask_paramedic() -> None:
+        nonlocal assigned_paramedic
+        # checks if there are any more paramedics
+        if len(temp_paramedics) == 0:
+            spawn_paramedic(agent)
+        
+        paramedic = temp_paramedics.pop(0)
+
+        # tries to assign this agent to a paramedic
+        accepted_assignment: bool = paramedic.add_to_heal_queue(agent)
+        
+        # if assignment is successful, then tell the outside
+        if accepted_assignment:
+            assigned_paramedic = paramedic
+        # otherwise, check the next in line
+        else:
+            ask_paramedic()
+            
+    
+    ask_paramedic()   
+
+    if assigned_paramedic == None:
+        random_paramedic: Agents.Paramedic = random.choice(world.paramedics)
+        random_paramedic.heal_queue.append(agent)
 
 
 
+# subscribe functions to events
 def set_subscribe():
     subscribe("disaster_start", injure_near_disaster)
     subscribe("help_needed", dispatch_paramedic)
