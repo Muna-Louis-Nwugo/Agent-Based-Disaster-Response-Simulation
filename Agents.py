@@ -502,20 +502,37 @@ class Civilian(Agent):
 class Paramedic(Agent):
 
     class Pattern(Enum):
-        DEPLOYED = 2
+        STANDBY = 1
+        DISPATCHED = 2
 
     def __init__(self, spawn_location: tuple, road_graph: dict, global_map: np.ndarray, in_danger: Civilian = None): #type: ignore
-        self.heal_queue: list = [in_danger]
+        self.heal_queue: list = []
+        self.add_to_heal_queue(in_danger)
         self.spawn_location: tuple = spawn_location
         self.global_map: np.ndarray = global_map
+        self.pattern = self.Pattern.DISPATCHED
 
         super().__init__(self.spawn(), road_graph, self.find_target())
 
     def add_to_heal_queue(self, agent: Civilian) -> bool:
+        if len(self.heal_queue) > 5:
+            return False
+        
+        distance_multiplier: float = 0.5
+        health_multiplier: float = 1
+        agent_time_to_worsen: float = agent.time_to_worsen
+        distance_to_agent: float = max(abs(self.location[0] - agent.location[0]), abs(self.location[1] - agent.location[1]))
+
+        agent_priority_score: float = (distance_multiplier * distance_to_agent) + (health_multiplier * agent_time_to_worsen)
+
+        heal_queue_entry: tuple[float, Civilian] = (agent_priority_score, agent)
+        heapq.heappush(self.heal_queue, heal_queue_entry)
         return True
 
+        
+
     def spawn(self) -> tuple: #type: ignore
-        civilian_in_danger: Civilian = self.heal_queue[0]
+        civilian_in_danger: Civilian = self.heal_queue[0][1]
 
         spawn_relative_to_disaster = [(-1, -1), (-1, 0), (0, -1), (0, 0), (0, 1), (1, 0), (1, 1), (1, -1), (-1, 1),]
         valid_spawn_locations = [(self.spawn_location[0] + y, self.spawn_location[1] + x) for y, x in spawn_relative_to_disaster
@@ -527,7 +544,27 @@ class Paramedic(Agent):
         return min(valid_spawn_locations, key=lambda x: max(abs(x[0] - civilian_in_danger.location[0]), (x[1] - civilian_in_danger.location[1])))
 
     def update(self) -> None:
-        return super().update()
+        if len(self.heal_queue) < 1 and self.pattern == self.Pattern.DISPATCHED:
+            self.pattern = self.Pattern.STANDBY
+            self.target = self.find_target()
+            self.find_path(self.target)
+        
+        elif len(self.heal_queue) > 0 and self.pattern == self.Pattern.STANDBY:
+            self.pattern = self.Pattern.DISPATCHED
+            self.target = self.find_target()
+            self.find_path(self.target)
+
+        elif  not self.path:
+            self.target = self.find_target()
+            self.path = self.find_path(self.target)
+
+        self.location = self.follow_path()
+
 
     def find_target(self) -> tuple:
-        return self.heal_queue.pop(0).location
+        if len(self.heal_queue) > 0:
+            return heapq.heappop(self.heal_queue)[1].location
+
+        self.pattern = self.Pattern.STANDBY
+        return self.spawn_location
+    

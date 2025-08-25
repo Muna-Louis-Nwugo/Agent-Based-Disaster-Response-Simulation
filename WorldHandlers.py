@@ -162,7 +162,7 @@ def select_paramedic(agent):
         nonlocal assigned_paramedic
         # checks if there are any more paramedics
         if len(temp_paramedics) == 0:
-            spawn_paramedic(agent)
+            return
         
         paramedic = temp_paramedics.pop(0)
 
