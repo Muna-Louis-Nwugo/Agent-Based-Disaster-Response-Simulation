@@ -153,7 +153,7 @@ class Agent(ABC):
         distance_to_loc: tuple[int, int] = (perceived_desired_loc[0] - 3, perceived_desired_loc[1] - 3)
 
         # recalculates path if the agent strays too far from path
-        if abs(distance_to_loc[0]) >= 3 or abs(distance_to_loc[1]) >= 3:
+        if abs(distance_to_loc[0]) >= 4 or abs(distance_to_loc[1]) >= 4:
             self.path = self.find_path(self.target)
             # next step in the path
             desired_loc = self.path.pop(0)
@@ -173,7 +173,7 @@ class Agent(ABC):
             heuristic: float = max(abs(perceived_desired_loc[0] - cell[0]), abs(perceived_desired_loc[1] - cell[1]))
 
             if heuristic < best_score:
-                if self.perception[cell[0]][cell[1]].occupant is None and self.perception[cell[0]][cell[1]].is_road: # type: ignore
+                if self.perception[cell[0]][cell[1]].occupant is None and self.perception[cell[0]][cell[1]].is_road and not self.perception[cell[0]][cell[1]].disaster: # type: ignore
                     best_loc = cell
                     best_score = heuristic
         
@@ -230,6 +230,7 @@ class Civilian(Agent):
         self.max_speed: float = 0  # TODO: come up with maximum speed equation. 
         self.road_graph = road_graph
         self.time_to_worsen: float = math.inf
+        self.healing: bool = False
         super().__init__(location, road_graph, self.find_target())
 
     #updates this civilians position
@@ -379,6 +380,7 @@ class Civilian(Agent):
             1. If I'm already fleeing or safe, do not check my perception
             2. If I see a disaster, flee
             3. If I see more than 5 other civilians fleeing, flee
+            4. If I see more than 2 casualties, flee
 
         Side Effects:
             Modifies this civilian's behavioral pattern.
@@ -388,13 +390,16 @@ class Civilian(Agent):
             return  # Already fleeing/safe, don't check again
 
         num_fleeing_agents = 0
+        num_casualties = 0
 
         for cell in self.perception.flatten():
             if isinstance(cell.occupant, Civilian):
                 if cell.occupant.pattern == Civilian.Pattern.FLEE:
                     num_fleeing_agents += 1
+                if cell.occupant.health_state == Civilian.HealthState.GRAVELY_INJURED or cell.occupant.health_state == Civilian.HealthState.DECEASED:
+                    num_casualties += 1
 
-            if cell.disaster or num_fleeing_agents > 5:
+            if cell.disaster or num_fleeing_agents > 5 or num_casualties > 2:
                 self.pattern = self.Pattern.FLEE
                 self.target = self.find_target()
                 self.path = self.find_path(self.target)
@@ -413,6 +418,7 @@ class Civilian(Agent):
         total_surrounding = sum([
             1 for cell in self.perception.flatten() 
             if cell.occupant is not None
+            and isinstance(cell.occupant, Civilian)
             and cell.occupant != self
             and cell.occupant.health_state != self.HealthState.DECEASED  # Dead people can't trample
             ])
@@ -448,11 +454,14 @@ class Civilian(Agent):
             print("civilian dead")
         elif injury_level == self.HealthState.INJURED and self.health_state == self.HealthState.HEALTHY:
             self.health_state = self.HealthState.INJURED
+            self.worsen_health()
             print("civilian injured")
         else: 
             self.health_state = self.HealthState.GRAVELY_INJURED
             print("civilian gravely injured")
+            self.worsen_health()
             post("help_needed", {"agent": self})
+
 
     
     
@@ -474,7 +483,8 @@ class Civilian(Agent):
         time_to_grave_injury: float = 60
         time_to_death: float = 20
 
-        if self.health_state == self.HealthState.HEALTHY or self.health_state == self.HealthState.SICK or self.health_state == self.HealthState.DECEASED:
+
+        if self.health_state == self.HealthState.HEALTHY or self.health_state == self.HealthState.SICK or self.health_state == self.HealthState.DECEASED or self.healing:
             return
         
         elif self.health_state == self.HealthState.INJURED:
@@ -505,14 +515,18 @@ class Paramedic(Agent):
         STANDBY = 1
         DISPATCHED = 2
 
-    def __init__(self, spawn_location: tuple, road_graph: dict, global_map: np.ndarray, in_danger: Civilian = None): #type: ignore
-        self.heal_queue: list = []
-        self.add_to_heal_queue(in_danger)
-        self.spawn_location: tuple = spawn_location
-        self.global_map: np.ndarray = global_map
+    def __init__(self, spawnable_cells: np.ndarray, hospital_location: tuple, road_graph: dict, in_danger: Civilian = None): #type: ignore
+        self.heal_queue: list[tuple[float, int, Civilian]] = []
+        self.road_graph = road_graph
+        self.hospital_location = hospital_location
+        self.counter: int = 0
+        self.first_injured_civilian: Civilian = in_danger
+        self.spawnable_cells: np.ndarray = spawnable_cells
+        self.spawn_location: tuple = self.spawn()
         self.pattern = self.Pattern.DISPATCHED
 
-        super().__init__(self.spawn(), road_graph, self.find_target())
+        super().__init__(self.spawn_location, self.road_graph, self.find_target())
+        self.add_to_heal_queue(in_danger)
 
     def add_to_heal_queue(self, agent: Civilian) -> bool:
         if len(self.heal_queue) > 5:
@@ -525,45 +539,112 @@ class Paramedic(Agent):
 
         agent_priority_score: float = (distance_multiplier * distance_to_agent) + (health_multiplier * agent_time_to_worsen)
 
-        heal_queue_entry: tuple[float, Civilian] = (agent_priority_score, agent)
+        self.counter += 1
+        heal_queue_entry: tuple[float, int, Civilian] = (agent_priority_score, self.counter, agent)
         heapq.heappush(self.heal_queue, heal_queue_entry)
         return True
 
         
 
-    def spawn(self) -> tuple: #type: ignore
-        civilian_in_danger: Civilian = self.heal_queue[0][1]
-
-        spawn_relative_to_disaster = [(-1, -1), (-1, 0), (0, -1), (0, 0), (0, 1), (1, 0), (1, 1), (1, -1), (-1, 1),]
-        valid_spawn_locations = [(self.spawn_location[0] + y, self.spawn_location[1] + x) for y, x in spawn_relative_to_disaster
-                                 if 0 <= self.spawn_location[0] + y < self.global_map.shape[0]
-                                 and 0 <= self.spawn_location[1] + x < self.global_map.shape[1]
-                                 and self.global_map[self.spawn_location[0] + y][self.spawn_location[1] + x].is_road #type: ignore
-                                 and self.global_map[self.spawn_location[0] + y][self.spawn_location[1] + x].occupant is None] # type: ignore
-
-        return min(valid_spawn_locations, key=lambda x: max(abs(x[0] - civilian_in_danger.location[0]), (x[1] - civilian_in_danger.location[1])))
+    def spawn(self) -> tuple:
+        civilian_in_danger: Civilian = self.first_injured_civilian
+        
+        valid_spawn_locations = []
+        for y in range(self.spawnable_cells.shape[0]):
+            for x in range(self.spawnable_cells.shape[1]):
+                cell = self.spawnable_cells[y, x]
+                if cell.is_road and cell.occupant is None:
+                    # Convert to world coordinates
+                    world_y = self.hospital_location[0] - 1 + y
+                    world_x = self.hospital_location[1] - 1 + x
+                    
+                    # Check if these coordinates are valid
+                    if (world_y, world_x) in self.road_graph:
+                        valid_spawn_locations.append((world_y, world_x))
+        
+        return min(valid_spawn_locations, key=lambda loc: 
+                max(abs(loc[0] - civilian_in_danger.location[0]), 
+                    abs(loc[1] - civilian_in_danger.location[1])))
 
     def update(self) -> None:
+        # State transitions
         if len(self.heal_queue) < 1 and self.pattern == self.Pattern.DISPATCHED:
             self.pattern = self.Pattern.STANDBY
             self.target = self.find_target()
-            self.find_path(self.target)
+            self.path = self.find_path(self.target)  # <- Missing self.path =
         
         elif len(self.heal_queue) > 0 and self.pattern == self.Pattern.STANDBY:
             self.pattern = self.Pattern.DISPATCHED
             self.target = self.find_target()
-            self.find_path(self.target)
+            self.path = self.find_path(self.target)  # <- Missing self.path =
 
-        elif  not self.path:
+        elif not self.path:  # Only recalc if path is empty
             self.target = self.find_target()
             self.path = self.find_path(self.target)
 
+        self.check_perception()
         self.location = self.follow_path()
 
+    def check_perception(self):
+        if not self.path or not self.heal_queue:
+            return
+
+        next_pos: tuple = self.path[0]
+        translation_difference: tuple = (self.location[0] - 3, self.location[1] - 3)
+        next_pos_translated: tuple = (next_pos[0] - translation_difference[0], next_pos[1] - translation_difference[1])
+
+        # Check if next position is within perception
+        if not (0 <= next_pos_translated[0] < 7 and 0 <= next_pos_translated[1] < 7):
+            return
+
+        next_pos_occupant: Agent = self.perception[next_pos_translated[0]][next_pos_translated[1]].occupant
+
+        if next_pos_occupant is not None and isinstance(next_pos_occupant, Civilian):
+            # Check if this is our primary target (dead or alive)
+            if self.heal_queue and next_pos_occupant == self.heal_queue[0][2]:
+                if self.heal(next_pos_occupant):
+                    self.target = self.find_target()
+                    self.path = self.find_path(self.target)
+            # Otherwise, opportunistic healing for gravely injured
+            elif next_pos_occupant.health_state == Civilian.HealthState.GRAVELY_INJURED:
+                self.heal(next_pos_occupant)
+
+
+    def heal(self, civilian: Civilian) -> bool:
+        """
+        Heals a gravely injured civilian. Prioritizes assigned targets but will
+        opportunistically heal any gravely injured civilian encountered.
+        
+        Returns:
+            True if primary target was healed (triggers path recalc)
+            False if opportunistic heal or no healing occurred
+        """
+        # Check if this is our primary target AND they're still gravely injured
+        if self.heal_queue and civilian == self.heal_queue[0][2]:
+            if civilian.health_state == Civilian.HealthState.GRAVELY_INJURED:
+                # Heal primary target
+                civilian.health_state = Civilian.HealthState.INJURED
+                civilian.time_to_worsen = math.inf
+                civilian.healing = True
+                print(f"Paramedic healed assigned target at {civilian.location}")
+            
+            # Pop them either way - they're no longer a valid target
+            heapq.heappop(self.heal_queue)
+            return True
+        
+        # Opportunistic healing (already checks for GRAVELY_INJURED)
+        elif civilian.health_state == Civilian.HealthState.GRAVELY_INJURED and not civilian.healing:
+            civilian.health_state = Civilian.HealthState.INJURED  
+            civilian.time_to_worsen = math.inf
+            civilian.healing = True
+            print(f"Paramedic opportunistically healed civilian at {civilian.location}")
+            return False
+    
+        return False
 
     def find_target(self) -> tuple:
         if len(self.heal_queue) > 0:
-            return heapq.heappop(self.heal_queue)[1].location
+            return self.heal_queue[0][2].location
 
         self.pattern = self.Pattern.STANDBY
         return self.spawn_location

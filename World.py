@@ -241,9 +241,8 @@ class World():
 
             self.map[old_loc[0], old_loc[1]].occupant = None # type: ignore
 
-            if isinstance(agent, Agents.Civilian):
-                if agent.pattern is not Agents.Civilian.Pattern.SAFE: #type: ignore
-                    self.map[new_loc[0], new_loc[1]].occupant = agent # type: ignore
+            if agent.pattern is not Agents.Civilian.Pattern.SAFE: #type: ignore
+                self.map[new_loc[0], new_loc[1]].occupant = agent # type: ignore
 
 
     def draw(self) -> None:
@@ -258,6 +257,7 @@ class World():
         - 'i' represents injured civilians
         - 'G' represents gravely injured civilians
         - 'D' represents deceased civilians
+        - 'P' represents paramedics
         - 'X' represents disaster location
         """
         print("\n" + "="*50)  # Separator line
@@ -285,6 +285,8 @@ class World():
                     print("█ ", end="")
                 elif cell.occupant is None:
                     print("  ", end="")  # Empty space instead of dot
+                elif isinstance(cell.occupant, Agents.Paramedic):
+                    print("P ", end="")  # Paramedic
                 elif isinstance(cell.occupant, Agents.Civilian):
                     health = cell.occupant.health_state
                     if health == Agents.Civilian.HealthState.HEALTHY:
@@ -347,7 +349,7 @@ if __name__ == "__main__":
         start = time.time()
         world.update()
         print(f"Update took: {time.time() - start:.3f} seconds")
-        #world.draw()
+        world.draw()
         #time.sleep(0.05)
     
     print("CATASTROPHE COMMENCED")
@@ -358,7 +360,7 @@ if __name__ == "__main__":
         world.update()
         print(" ")
         print(f"Update took: {time.time() - start:.3f} seconds")
-        #world.draw()
+        world.draw()
 
         #time.sleep(0.02) # FIXME: Once the frontend is built, add a slider to be able to adjust the speed
 

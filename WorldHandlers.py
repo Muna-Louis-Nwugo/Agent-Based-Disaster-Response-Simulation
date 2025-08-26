@@ -135,7 +135,10 @@ def spawn_paramedic(agent):
             select_paramedic(agent)
         
         try:
-            new_paramedic = Paramedic(sorted_spawn_locations.pop(0), world.road_graph, world.map, agent)
+            spawn_location = sorted_spawn_locations.pop(0)
+            spawnable_cells = world.map[spawn_location[0] - 1: spawn_location[0] + 2, 
+                                        spawn_location[1] - 1: spawn_location[1] + 2]
+            new_paramedic = Paramedic(spawnable_cells, spawn_location, world.road_graph, agent)
         except:
             print("Paramedic failed to spawn, trying again")
             spawn_paramedic_inner()
@@ -181,7 +184,7 @@ def select_paramedic(agent):
 
     if assigned_paramedic == None:
         random_paramedic: Agents.Paramedic = random.choice(world.paramedics)
-        random_paramedic.heal_queue.append(agent)
+        random_paramedic.add_to_heal_queue(agent)
 
 
 
