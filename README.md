@@ -64,24 +64,11 @@ Each agent has different states and decision-making patterns to realistically si
 - Deceased: Civilian has died (RIP)
 
 ### Paramedic
-**Patterns: Civilian Priority, Catastrophe Priority**
-- Civilian Priority: Paramedic focuses on tending to injured civilian target before heading to catastrophe zone
-- Catastrophe Priority: Paramedic rushes to catastrophe site, regardless of injured civilians on the way
-###### Note: I'm debating whether to have paramedics assigned to a pattern, or dynamically decide on a pattern based on the environmnent. I shall test these two strategies.
+**Patterns: Standby, Dispatched**
+- Standby: There are no civilians for the paramedic to tend to. Paramedic returns to hospital.
+- Dispatched: There is at least one civilian that the paramedic needs to tend to. Paramedic is working on saving these civilians.
 
-**States: Standby, Dispatched**
-- Standby: Paramedic is at starting location (hospital / ambulance center)
-- Dispatched: Paramedic is responding to an injury
-
-### Firefighters
-**Patterns: Engage**
-- Engage: Head directly to catastrophe site
-
-**States: Standby, Dispatched**
-- Standby: Firefighter at fire station
-- Dispatched: Firefighter en route to catastrophe site
-
-Police Agents proved to require a lot of complexity to be even remotely accurate (perimeter establishment, crowd control, etc.), so I've decided to skip them and try tackle them with the next iteration of this project.
+Police and Firefighter Agents proved to require a lot of complexity to be even remotely accurate (perimeter establishment, crowd control, civilian transportation, etd.), so I've decided to skip them and try tackle them with the next iteration of this project.
 
 ---
 ## Technologies/Methods Used
@@ -105,10 +92,9 @@ Police Agents proved to require a lot of complexity to be even remotely accurate
 - Catastrophy initialization
 - Civilian Patterns
 - Civilian Health State Machine
-
-
-### In Progress
-- Paramedic scaffolding
+- Paramedic Dispatch
+-  Paramedic triage
 
 ### Planned
-- Firefighter scaffolding
+- Firefighter
+- 
