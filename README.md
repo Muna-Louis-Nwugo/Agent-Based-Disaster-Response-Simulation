@@ -11,8 +11,8 @@ This project was inspired by the 9/11 attacks on New York City. I had originally
 I believe that systems should always be architected as if they were going to be extended, and this project is no different. I've developed a modular system that emphasizes extensibility, especially since I plan on returning and improving my project later. 
 ```
               Render
-              ^  |
-              |  V
+               ^  |
+               |  V
     ---------- World <--- World Handlers
     |            |             ^
     V            V             |
