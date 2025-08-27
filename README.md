@@ -26,8 +26,6 @@ pip install numpy pygame
 ```
 
 ### Run Simulation
-<img width="1079" height="1077" alt="image" src="https://github.com/user-attachments/assets/57118557-976f-485f-9af2-397083e46ab6" />
-
 **Visual Mode (Pygame):**
 ```bash
 python Render.py
@@ -59,6 +57,8 @@ python World.py
 - 🟠 Orange - Disaster zone
 - 🔲 Gray - Buildings
 - ⬛ Black - Roads
+
+<img width="1079" height="1077" alt="image" src="https://github.com/user-attachments/assets/57118557-976f-485f-9af2-397083e46ab6" />
 
 ---
 
