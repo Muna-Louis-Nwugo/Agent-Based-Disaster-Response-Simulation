@@ -196,7 +196,7 @@ def select_paramedic(agent):
         agent_priority_score: float = (distance_multiplier * distance_to_agent) + (health_multiplier * agent_time_to_worsen)
 
         heal_queue_entry: tuple[float, int, Civilian] = (agent_priority_score, math.inf, agent)
-        heapq.heappush(random_paramedic.heal_queue, math.inf, heal_queue_entry)
+        heapq.heappush(random_paramedic.heal_queue, heal_queue_entry)
 
 
 
