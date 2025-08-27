@@ -21,6 +21,10 @@ changes to the World and Agent states.
 """
 # To be populated with a World class reference upon initialization
 world = any
+gravely_injured_civilians: int = 0
+healed_civilians: int = 0
+dead_civilians: int = 0
+safe_civilians: int = 0
 
 
 def injure_near_disaster(data: dict) -> None:
@@ -194,13 +198,49 @@ def select_paramedic(agent):
         distance_to_agent: float = max(abs(random_paramedic.location[0] - agent.location[0]), abs(random_paramedic.location[1] - agent.location[1]))
 
         agent_priority_score: float = (distance_multiplier * distance_to_agent) + (health_multiplier * agent_time_to_worsen)
+        random_paramedic.counter += 1
 
-        heal_queue_entry: tuple[float, int, Civilian] = (agent_priority_score, math.inf, agent)
+        heal_queue_entry: tuple[float, int, Civilian] = (agent_priority_score, random_paramedic.counter, agent)
         heapq.heappush(random_paramedic.heal_queue, heal_queue_entry)
 
+def count_safe_civilians(data: dict) -> None:
+    global safe_civilians
+    safe_civilians += 1
+
+def count_dead_civilians(data: dict) -> None:
+    global dead_civilians
+    dead_civilians += 1
+
+def count_gravely_injured_civilians(data: dict) -> None:
+    global gravely_injured_civilians
+    gravely_injured_civilians += 1
+
+def count_healed_civilians(data: dict) -> None:
+    global healed_civilians
+    healed_civilians += 1
+
+def calculate_stats(data: dict) -> None:
+    global gravely_injured_civilians 
+    global dead_civilians
+    global safe_civilians 
+    global healed_civilians
+
+    print(f"Civilians Gravely Injured: {gravely_injured_civilians}")
+    print(f"Healed Civilians: {healed_civilians}")
+    print(f"Dead Civilians: {dead_civilians}")
+    print(f"Safe Civilians {safe_civilians}")
+
+    print(" ")
+    print(f"Heal Rate {healed_civilians / gravely_injured_civilians}")
+    print(f"Survival rate {safe_civilians / (safe_civilians + dead_civilians)}")
 
 
 # subscribe functions to events
 def set_subscribe():
     subscribe("disaster_start", injure_near_disaster)
     subscribe("help_needed", dispatch_paramedic)
+    subscribe("civilian safe", count_safe_civilians)
+    subscribe("civilian gravely injured", count_gravely_injured_civilians)
+    subscribe("civilian dead", count_dead_civilians)
+    subscribe("civilian healed", count_healed_civilians)
+    subscribe("simulation end", calculate_stats)

@@ -355,11 +355,13 @@ if __name__ == "__main__":
     print("CATASTROPHE COMMENCED")
     world.set_disaster_loc((29, 25))
     
-    for i in range(350):
+    for i in range(600):
         start = time.time()
         world.update()
         print(f"Update took: {time.time() - start:.3f} seconds")
         #world.draw()
+    
+    post("simulation end", {"world": world})
 
     
     """ import time

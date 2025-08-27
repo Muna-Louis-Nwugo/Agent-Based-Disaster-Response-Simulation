@@ -236,6 +236,7 @@ class Civilian(Agent):
     #updates this civilians position
     def update(self) -> None:
         if self.pattern == self.Pattern.SAFE or self.health_state == self.HealthState.DECEASED or self.health_state == self.HealthState.GRAVELY_INJURED:
+            self.worsen_health()
             return
 
         self.check_perception()
@@ -245,7 +246,7 @@ class Civilian(Agent):
         if self.pattern == self.Pattern.FLEE:
             if any(self.location[0] == edge[0] and self.location[1] == edge[1] for edge in self.safe_cells):
                 self.pattern = self.Pattern.SAFE
-                #print("Agent safe")
+                post("civilian safe", {"agent": self})
                 return  # Don't move anymore
         
         if self.path:
@@ -451,6 +452,7 @@ class Civilian(Agent):
 
         if injury_level == self.HealthState.DECEASED or self.health_state == self.HealthState.GRAVELY_INJURED:
             self.health_state = self.HealthState.DECEASED
+            post("civilian dead", {"agent": self})
             print("civilian dead")
         elif injury_level == self.HealthState.INJURED and self.health_state == self.HealthState.HEALTHY:
             self.health_state = self.HealthState.INJURED
@@ -460,6 +462,7 @@ class Civilian(Agent):
             self.health_state = self.HealthState.GRAVELY_INJURED
             print("civilian gravely injured")
             self.worsen_health()
+            post("civilian gravely injured", {"agent": self})
             post("help_needed", {"agent": self})
 
 
@@ -475,13 +478,13 @@ class Civilian(Agent):
         when unset, then counts down to zero to trigger state transitions.
         
         State progression:
-            INJURED -> (60 ticks) -> GRAVELY_INJURED -> (20 ticks) -> DECEASED
+            INJURED -> (50 ticks) -> GRAVELY_INJURED -> (70 ticks) -> DECEASED
         
         No effect on HEALTHY, SICK, or already DECEASED civilians.
         Must be called each update tick for injured civilians.
         """
-        time_to_grave_injury: float = 60
-        time_to_death: float = 20
+        time_to_grave_injury: float = 50
+        time_to_death: float = 70
 
 
         if self.health_state == self.HealthState.HEALTHY or self.health_state == self.HealthState.SICK or self.health_state == self.HealthState.DECEASED or self.healing:
@@ -627,6 +630,7 @@ class Paramedic(Agent):
                 civilian.time_to_worsen = math.inf
                 civilian.healing = True
                 print(f"Paramedic healed assigned target at {civilian.location}")
+                post("civilian healed", {"agent": civilian})
             
             # Pop them either way - they're no longer a valid target
             heapq.heappop(self.heal_queue)
@@ -638,6 +642,7 @@ class Paramedic(Agent):
             civilian.time_to_worsen = math.inf
             civilian.healing = True
             print(f"Paramedic opportunistically healed civilian at {civilian.location}")
+            post("civilian healed", {"agent": civilian})
             return False
     
         return False
