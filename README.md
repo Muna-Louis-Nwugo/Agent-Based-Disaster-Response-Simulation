@@ -40,12 +40,12 @@ python World.py
 - `SPACE` - Pause/unpause simulation
 - Close window to exit
 
-### Simulation Parameters
+### Simulation Parameters (adjustable)
 - **Grid Size**: 60x60 cells
 - **Population**: 450 civilians, 5 paramedics
 - **Disaster**: Triggers automatically at tick 300
 - **Location**: (29, 25)
-- **FPS**: 25 (adjustable in Render.py line 15)
+- **FPS**: 25
 
 ### Visual Indicators
 - 🟩 Green - Healthy civilian
