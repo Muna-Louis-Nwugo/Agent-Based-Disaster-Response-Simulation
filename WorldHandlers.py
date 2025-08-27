@@ -2,6 +2,7 @@ from WorldEvents import subscribe
 import Agents
 import random
 import numpy as np
+import math
 
 """
 WorldHandlers Module - Event response handlers for the Urban Catastrophe Simulation.
