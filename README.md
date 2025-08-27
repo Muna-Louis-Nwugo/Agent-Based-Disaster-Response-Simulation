@@ -187,7 +187,6 @@ Civilians calculate escape routes away from disaster:
 
 ---
 ## Technologies/Methods Used
-### Planned
 - Python
 - Numpy
 - Agent-Based Modeling
