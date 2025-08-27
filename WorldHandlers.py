@@ -183,8 +183,18 @@ def select_paramedic(agent):
     ask_paramedic()   
 
     if assigned_paramedic == None:
+        # if no paramedic is available, forcibly assign this injured agent to a paramedic
         random_paramedic: Agents.Paramedic = random.choice(world.paramedics)
-        random_paramedic.add_to_heal_queue(agent)
+
+        distance_multiplier: float = 0.5
+        health_multiplier: float = 1
+        agent_time_to_worsen: float = agent.time_to_worsen
+        distance_to_agent: float = max(abs(random_paramedic.location[0] - agent.location[0]), abs(random_paramedic.location[1] - agent.location[1]))
+
+        agent_priority_score: float = (distance_multiplier * distance_to_agent) + (health_multiplier * agent_time_to_worsen)
+
+        heal_queue_entry: tuple[float, int, Civilian] = (agent_priority_score, math.inf, agent)
+        heapq.heappush(random_paramedic.heal_queue, heal_queue_entry)
 
 
 
