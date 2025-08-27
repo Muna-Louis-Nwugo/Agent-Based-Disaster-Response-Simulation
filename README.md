@@ -9,7 +9,7 @@ This project was inspired by the 9/11 attacks on New York City. I had originally
 ## Setup and Run Simulation
 
 ### Prerequisites
-- Python 3.x
+- Python
 - NumPy
 - Pygame
 
