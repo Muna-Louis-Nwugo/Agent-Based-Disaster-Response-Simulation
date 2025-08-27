@@ -6,6 +6,61 @@ For the past couple of months, I've been swimming in the shallow pools of simula
 This project was inspired by the 9/11 attacks on New York City. I had originally intended to test different Emergency Response systems and compare things like different communication protocols and centralized vs decentralized control, but I quickly realized that all of that might be just a _little_ outside my capabilities at the moment. So I scaled it back to something more focused: a system that models how first responders are dispatched and make decisions while also discovering interesting emergent behaviours that could occur when you have hundreds or thousands of civilians fleeing a single catastrophe. It's meant to be a general educational resource for anyone interested, though I would love to come back and build that original idea once my skills permit.
 
 ---
+## Setup and Run Simulation
+
+### Prerequisites
+- Python 3.x
+- NumPy
+- Pygame
+
+### Installation
+Clone the repository:
+```bash
+git clone https://github.com/Muna-Louis-Nwugo/urban_catastrophe_simulation.git
+cd urban_catastrophe_simulation
+```
+
+Install Dependencies
+```bash
+pip install numpy pygame
+```
+
+### Run Simulation
+<img width="1079" height="1077" alt="image" src="https://github.com/user-attachments/assets/57118557-976f-485f-9af2-397083e46ab6" />
+
+**Visual Mode (Pygame):**
+```bash
+python Render.py
+```
+
+**Console Mode (ASCII):**
+```bash
+python World.py
+```
+
+### Controls
+- `SPACE` - Pause/unpause simulation
+- Close window to exit
+
+### Simulation Parameters
+- **Grid Size**: 60x60 cells
+- **Population**: 450 civilians, 5 paramedics
+- **Disaster**: Triggers automatically at tick 300
+- **Location**: (29, 25)
+- **FPS**: 25 (adjustable in Render.py line 15)
+
+### Visual Indicators
+- 🟩 Green - Healthy civilian
+- 🟪 Purple - Sick civilian  
+- 🟡 Yellow - Injured civilian
+- 🔴 Red - Gravely injured civilian
+- 🟤 Dark Red - Deceased civilian
+- 🔵 Blue - Paramedic
+- 🟠 Orange - Disaster zone
+- 🔲 Gray - Buildings
+- ⬛ Black - Roads
+
+---
 
 ## System Architecture
 I believe that systems should always be architected as if they were going to be extended, and this project is no different. I've developed a modular system that emphasizes extensibility, especially since I plan on returning and improving my project later. 
@@ -140,7 +195,6 @@ Civilians calculate escape routes away from disaster:
 - Multi-Agent Coordination
 - Object Oriented Programming
 - Event Driven Architecture
-- PyGame
 
 ---
 ## Project Status
