@@ -11,7 +11,7 @@ pygame.init()
 # Config - matching World.py exactly
 CELL_SIZE = 12  # Bigger cells for better visibility
 GRID_SIZE = 60  # Same as World.py
-FPS = 30  # Adjust this: 5=slow, 15=smooth, 30=fast
+FPS = 15  # Adjust this: 5=slow, 15=smooth, 30=fast
 
 # Colors
 BLACK = (20, 20, 20)
