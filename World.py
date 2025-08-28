@@ -29,6 +29,14 @@ class Cell():
     (road or building), whether the cell is a disaster site, and which agent is currently occupying the cell.
     """
     def __init__(self, is_road: bool, disaster: bool = False):
+        """
+        Initializes a grid cell with terrain type and disaster status.
+        
+        Args:
+            is_road: True if cell is traversable road, False if building
+            disaster: True if cell is disaster epicenter, False otherwise
+        """
+
         self.is_road: bool = is_road
         self.disaster: bool = disaster
         self.occupant: Agents.Agent = None  # type: ignore
@@ -203,7 +211,20 @@ class World():
     #sets the location of a disaster
     def set_disaster_loc(self, loc: tuple):
         """
+        Activates disaster at specified location and alerts all systems.
+        
+        Marks the disaster cell, updates global agent disaster knowledge,
+        and posts event to trigger injury calculations and panic spread.
+        
+        Args:
+            loc: Tuple (y, x) coordinates of disaster epicenter
+            
+        Side Effects:
+            - Sets cell.disaster to True at location
+            - Updates Agent.disaster_loc class variable
+            - Posts "disaster_start" event with world and location
         """
+         
         self.disaster_loc = loc
         self.map[loc[0]][loc[1]].disaster = True #type: ignore
         Agents.Agent.disaster_loc = loc

@@ -29,6 +29,18 @@ class Agent(ABC):
     disaster_loc: tuple = None #type: ignore
 
     def __init__(self, location: tuple, road_graph: dict, target: tuple):
+        """
+        Initializes a base Agent with pathfinding capabilities.
+        
+        Args:
+            location: Tuple (y, x) representing initial position on the grid
+            road_graph: Dict mapping road cell coordinates to list of neighboring road cells
+            target: Tuple (y, x) representing the agent's destination
+        
+        Side Effects:
+            - Calculates initial path to target using A* pathfinding
+        """
+
         self.location: tuple = location
         self.perception: np.ndarray = None # type: ignore
         self.road_graph: dict = road_graph
@@ -37,6 +49,16 @@ class Agent(ABC):
 
     @abstractmethod
     def update(self):
+        """
+        Updates agent state and position for one simulation tick.
+        
+        Implementations must handle:
+        - State transitions based on behavioral patterns
+        - Movement along calculated paths
+        - Perception-based decision making
+        - Event posting for state changes
+        """
+
         pass
 
     # calculates this agent's path to a target
@@ -121,6 +143,17 @@ class Agent(ABC):
     
     @abstractmethod
     def find_target(self) -> tuple:
+        """
+        Determines the agent's next target destination based on current state.
+        
+        Returns:
+            tuple: (y, x) coordinates of the target location
+            
+        Implementation Requirements:
+            - Must return valid road cell coordinates
+            - Should consider agent's current behavioral pattern
+            - May access disaster location if agent is aware
+        """
         pass
 
     # Follows the predefined path, avoiding local obstacles
@@ -225,6 +258,18 @@ class Civilian(Agent):
         DECEASED = 5
 
     def __init__(self, location: tuple, road_graph: dict):
+        """
+        Determines the agent's next target destination based on current state.
+        
+        Returns:
+            tuple: (y, x) coordinates of the target location
+            
+        Implementation Requirements:
+            - Must return valid road cell coordinates
+            - Should consider agent's current behavioral pattern
+            - May access disaster location if agent is aware
+        """
+
         self.pattern: Civilian.Pattern = self.Pattern.WANDER
         self.health_state: Civilian.HealthState = self.HealthState.HEALTHY
         self.max_speed: float = 0  # TODO: come up with maximum speed equation. 
@@ -235,12 +280,30 @@ class Civilian(Agent):
 
     #updates this civilians position
     def update(self) -> None:
-        if self.pattern == self.Pattern.SAFE or self.health_state == self.HealthState.DECEASED or self.health_state == self.HealthState.GRAVELY_INJURED:
-            self.worsen_health()
+        """
+        Updates civilian position and state for one simulation tick.
+        
+        Handles movement, perception checking, health deterioration, and
+        escape detection. Safe or deceased civilians stop moving.
+        
+        Side Effects:
+            - Updates location if moving
+            - May change pattern from WANDER to FLEE based on perception
+            - May trigger SAFE pattern if edge reached while fleeing
+            - Deteriorates health if injured
+            - Posts "civilian safe" event when reaching safety
+            - Recalculates path when exhausted or pattern changes
+        """
+
+        if self.pattern == self.Pattern.SAFE: 
+            return 
+        
+        self.worsen_health()
+        
+        if self.health_state == self.HealthState.DECEASED or self.health_state == self.HealthState.GRAVELY_INJURED:
             return
 
         self.check_perception()
-        self.worsen_health()
         
         # Check if at edge (for fleeing agents)
         if self.pattern == self.Pattern.FLEE:
@@ -364,6 +427,19 @@ class Civilian(Agent):
         
     #checks perception to modify state
     def check_perception(self) -> None:
+        """
+        Analyzes perception grid to trigger state changes.
+        
+        Delegates to pattern-specific perception handlers:
+        - WANDER: Checks for disaster/panic triggers
+        - FLEE: Monitors crowd density for crush injuries
+        - SAFE: No perception checks needed
+        
+        Side Effects:
+            - May change pattern from WANDER to FLEE
+            - May cause injury in crowd crush scenarios
+        """
+
         if self.pattern == self.Pattern.WANDER:
             self.check_perception_wander()
         elif self.pattern == self.Pattern.FLEE:
@@ -519,6 +595,24 @@ class Paramedic(Agent):
         DISPATCHED = 2
 
     def __init__(self, spawnable_cells: np.ndarray, hospital_location: tuple, road_graph: dict, in_danger: Civilian = None): #type: ignore
+        """
+        Initializes a Paramedic agent dispatched to help injured civilians.
+        
+        Spawns at the nearest valid road cell to the first injured civilian
+        within the hospital's 3x3 spawn area. Immediately begins dispatch.
+        
+        Args:
+            spawnable_cells: 3x3 numpy array of Cell objects around hospital
+            hospital_location: Tuple (y, x) of hospital center coordinates
+            road_graph: Dict mapping road cells to navigable neighbors
+            in_danger: First Civilian requiring medical attention
+            
+        Side Effects:
+            - Adds in_danger civilian to heal queue
+            - Sets pattern to DISPATCHED
+            - Calculates spawn location and initial path
+        """
+
         self.heal_queue: list[tuple[float, int, Civilian]] = []
         self.road_graph = road_graph
         self.hospital_location = hospital_location
@@ -532,6 +626,30 @@ class Paramedic(Agent):
         self.add_to_heal_queue(in_danger)
 
     def add_to_heal_queue(self, agent: Civilian) -> bool:
+        """
+        Adds a civilian to this paramedic's priority queue for healing.
+
+        Removes all civilians that are safe, are dead, or have been healed from the queue
+        
+        Uses priority scoring based on distance and time until death.
+        Lower scores indicate higher priority. Queue capacity is 5.
+        
+        Args:
+            agent: Civilian requiring medical attention
+            
+        Returns:
+            bool: True if added successfully, False if queue is full
+            
+        Priority Calculation:
+            score = (0.5 * distance) + (1.0 * time_to_worsen)
+        """
+        updated_heal_queue = [item for item in self.heal_queue if not (item[2].pattern == Civilian.Pattern.SAFE or 
+                                                                       item[2].health_state == Civilian.HealthState.INJURED or
+                                                                       item[2].health_state == Civilian.HealthState.HEALTHY or 
+                                                                       item[2].health_state == Civilian.HealthState.DECEASED)]
+        self.heal_queue = updated_heal_queue
+        heapq.heapify(updated_heal_queue)
+
         if len(self.heal_queue) > 5:
             return False
         
@@ -550,6 +668,21 @@ class Paramedic(Agent):
         
 
     def spawn(self) -> tuple:
+        """
+        Calculates optimal spawn location within hospital's spawn area.
+        
+        Finds all valid road cells in the 3x3 area around the hospital,
+        then selects the one closest to the first injured civilian.
+        
+        Returns:
+            tuple: (y, x) world coordinates of spawn location
+            
+        Implementation:
+            - Converts local 3x3 coordinates to world coordinates
+            - Filters for road cells that exist in road_graph
+            - Uses Chebyshev distance to find closest to target
+        """
+
         civilian_in_danger: Civilian = self.first_injured_civilian
         
         valid_spawn_locations = []
@@ -570,16 +703,29 @@ class Paramedic(Agent):
                     abs(loc[1] - civilian_in_danger.location[1])))
 
     def update(self) -> None:
+        """
+        Updates paramedic position and handles healing for one tick.
+        
+        Transitions between STANDBY (no patients) and DISPATCHED (active)
+        states. Moves toward highest priority patient and heals on contact.
+        
+        Side Effects:
+            - Changes pattern based on heal queue status
+            - Updates location along calculated path
+            - Heals civilians through check_perception
+            - Recalculates path when queue changes
+        """
+
         # State transitions
         if len(self.heal_queue) < 1 and self.pattern == self.Pattern.DISPATCHED:
             self.pattern = self.Pattern.STANDBY
             self.target = self.find_target()
-            self.path = self.find_path(self.target)  # <- Missing self.path =
+            self.path = self.find_path(self.target) 
         
         elif len(self.heal_queue) > 0 and self.pattern == self.Pattern.STANDBY:
             self.pattern = self.Pattern.DISPATCHED
             self.target = self.find_target()
-            self.path = self.find_path(self.target)  # <- Missing self.path =
+            self.path = self.find_path(self.target) 
 
         elif not self.path:  # Only recalc if path is empty
             self.target = self.find_target()
@@ -589,6 +735,19 @@ class Paramedic(Agent):
         self.location = self.follow_path()
 
     def check_perception(self):
+        """
+        Scans ahead for civilians to heal opportunistically.
+        
+        Checks next position in path for civilians. Heals primary target
+        or any gravely injured civilian encountered. Triggers path recalc
+        if primary target is healed or deceased.
+        
+        Side Effects:
+            - May heal civilians at next position
+            - May trigger path recalculation
+            - Updates heal queue if primary target reached
+        """
+
         if not self.path or not self.heal_queue:
             return
 
@@ -600,7 +759,7 @@ class Paramedic(Agent):
         if not (0 <= next_pos_translated[0] < 7 and 0 <= next_pos_translated[1] < 7):
             return
 
-        next_pos_occupant: Agent = self.perception[next_pos_translated[0]][next_pos_translated[1]].occupant
+        next_pos_occupant: Agent = self.perception[next_pos_translated[0]][next_pos_translated[1]].occupant #type: ignore
 
         if next_pos_occupant is not None and isinstance(next_pos_occupant, Civilian):
             # Check if this is our primary target (dead or alive)
@@ -615,12 +774,25 @@ class Paramedic(Agent):
 
     def heal(self, civilian: Civilian) -> bool:
         """
-        Heals a gravely injured civilian. Prioritizes assigned targets but will
-        opportunistically heal any gravely injured civilian encountered.
+        Attempts to heal a gravely injured civilian.
         
+        Prioritizes assigned targets but will opportunistically heal any
+        gravely injured civilian encountered. Sets civilian to INJURED
+        state and prevents further deterioration.
+        
+        Args:
+            civilian: The Civilian to attempt healing
+            
         Returns:
-            True if primary target was healed (triggers path recalc)
-            False if opportunistic heal or no healing occurred
+            bool: True if primary target was processed (healed or dead),
+                  triggering path recalculation. False for opportunistic
+                  heals or no action taken.
+                  
+        Side Effects:
+            - Changes civilian health_state to INJURED if GRAVELY_INJURED
+            - Sets civilian.healing to True to prevent deterioration
+            - Removes primary target from heal queue if processed
+            - Posts "civilian healed" event on successful heal
         """
         # Check if this is our primary target AND they're still gravely injured
         if self.heal_queue and civilian == self.heal_queue[0][2]:
@@ -648,6 +820,18 @@ class Paramedic(Agent):
         return False
 
     def find_target(self) -> tuple:
+        """
+        Determines paramedic's movement target based on heal queue.
+        
+        Returns location of highest priority patient if queue has entries,
+        otherwise returns to hospital spawn point in STANDBY mode.
+        
+        Returns:
+            tuple: (y, x) coordinates of next target
+            
+        Side Effects:
+            - Sets pattern to STANDBY if queue is empty
+        """
         if len(self.heal_queue) > 0:
             return self.heal_queue[0][2].location
 

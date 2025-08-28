@@ -126,6 +126,23 @@ def dispatch_paramedic(data: dict) -> None:
 
 
 def spawn_paramedic(agent):
+    """
+    Creates a new paramedic at the nearest hospital to respond to injury.
+    
+    Finds closest hospital spawn point to the injured civilian and attempts
+    to spawn a paramedic there. Falls back to selection if spawn fails or
+    no valid spawn locations exist.
+    
+    Args:
+        agent: Civilian agent requiring medical attention
+        
+    Side Effects:
+        - Creates new Paramedic instance
+        - Adds paramedic to world.paramedics and world.agents
+        - Sets initial perception for new paramedic
+        - Falls back to select_paramedic if spawn fails
+    """
+
     print("Trying paramedic spawn")
     agent_location: tuple = agent.location  
     # finds the closest spawn location to the civiliian
@@ -158,6 +175,20 @@ def spawn_paramedic(agent):
 
 
 def select_paramedic(agent):
+    """
+    Assigns an injured civilian to an existing paramedic's heal queue.
+    
+    Queries paramedics from closest to furthest, allowing each to accept
+    based on queue capacity. If all reject, forces assignment to random
+    paramedic to ensure coverage.
+    
+    Args:
+        agent: Civilian agent requiring medical attention
+        
+    Side Effects:
+        - Adds civilian to a paramedic's heal queue
+        - May force assignment if all paramedics at capacity
+    """
     print("Trying paramedic selection")
     agent_location: tuple = agent.location
     # makes a sorted copy of the list of all paramedics, sorted from closest to fartheset
@@ -204,22 +235,76 @@ def select_paramedic(agent):
         heapq.heappush(random_paramedic.heal_queue, heal_queue_entry)
 
 def count_safe_civilians(data: dict) -> None:
+    """
+    Increments counter for civilians who successfully escaped.
+    
+    Args:
+        data: Dict containing 'agent' key with escaped Civilian
+        
+    Side Effects:
+            - Increments global safe_civilians counter
+    """
+
     global safe_civilians
     safe_civilians += 1
 
 def count_dead_civilians(data: dict) -> None:
+    """
+    Increments counter for deceased civilians.
+    
+    Args:
+        data: Dict containing 'agent' key with deceased Civilian
+        
+    Side Effects:
+        - Increments global dead_civilians counter
+    """
     global dead_civilians
     dead_civilians += 1
 
 def count_gravely_injured_civilians(data: dict) -> None:
+    """
+    Increments counter for civilians who became gravely injured.
+    
+    Args:
+        data: Dict containing 'agent' key with gravely injured Civilian
+        
+    Side Effects:
+        - Increments global gravely_injured_civilians counter
+    """
+     
     global gravely_injured_civilians
     gravely_injured_civilians += 1
 
 def count_healed_civilians(data: dict) -> None:
+    """
+    Increments counter for civilians successfully healed by paramedics.
+    
+    Args:
+        data: Dict containing 'agent' key with healed Civilian
+        
+    Side Effects:
+        - Increments global healed_civilians counter
+    """
+
     global healed_civilians
     healed_civilians += 1
 
 def calculate_stats(data: dict) -> None:
+    """
+    Prints final simulation statistics and calculates key metrics.
+    
+    Outputs total counts and calculates heal rate (healed/gravely injured)
+    and survival rate (safe/(safe + dead)) as performance indicators.
+    
+    Args:
+        data: Dict containing 'world' key with final World state
+        
+    Output:
+        - Total counts for each civilian state
+        - Heal rate percentage
+        - Overall survival rate percentage
+    """
+
     global gravely_injured_civilians 
     global dead_civilians
     global safe_civilians 
@@ -237,6 +322,23 @@ def calculate_stats(data: dict) -> None:
 
 # subscribe functions to events
 def set_subscribe():
+    """
+    Registers all world handler functions to their respective events.
+    
+    Sets up the event-handler mapping for disaster response, medical
+    dispatch, and statistics tracking. Must be called before simulation
+    starts.
+    
+    Subscriptions:
+        - disaster_start -> injure_near_disaster
+        - help_needed -> dispatch_paramedic  
+        - civilian safe -> count_safe_civilians
+        - civilian gravely injured -> count_gravely_injured_civilians
+        - civilian dead -> count_dead_civilians
+        - civilian healed -> count_healed_civilians
+        - simulation end -> calculate_stats
+    """
+
     subscribe("disaster_start", injure_near_disaster)
     subscribe("help_needed", dispatch_paramedic)
     subscribe("civilian safe", count_safe_civilians)
